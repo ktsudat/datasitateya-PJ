@@ -303,8 +303,16 @@ window.togglePreview=()=>{previewOpen=!previewOpen;$("#previewDock").classList.t
 
 async function exportWorkbook(sheets,name){const workbook=new ExcelJS.Workbook();for(const [sheetName,data] of sheets){const sheet=workbook.addWorksheet(sheetName.slice(0,31));data.forEach(row=>sheet.addRow(row.map(spreadsheetSafe)));sheet.getRow(1).font={bold:true};}download(new Blob([await workbook.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),name);}
 function mapRows(q){
-  const rows=[["加工済の番号","回答選択肢"]];
-  effectiveOptions(q).forEach((option,index)=>rows.push([String(option.code??"").trim()===""?index+1:option.code,option.label]));
+  const rows=[
+    ["V番号",q.variableName],
+    ["設問文",q.header],
+    [],
+    ["加工済の番号","回答選択肢"]
+  ];
+  effectiveOptions(q).forEach((option,index)=>rows.push([
+    String(option.code??"").trim()===""?index+1:option.code,
+    option.label
+  ]));
   return rows;
 }
 window.downloadMap=i=>exportWorkbook([[questions[i].variableName,mapRows(questions[i])]],`${questions[i].variableName}_回答選択肢.xlsx`);

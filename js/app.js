@@ -151,11 +151,11 @@ window.setName=(i,v)=>{questions[i].variableName=v.trim();updatePreview();save(f
 window.setType=(i,v)=>{const q=questions[i];q.responseType=v;q.method=v==="multi"?"multi":v==="single"?"manual":"none";q.options=observedOptions(q).map((label,j)=>({label,code:j+1,isOther:isOtherLabel(label)}));q.hasOther=q.options.some(o=>o.isOther);refreshOtherCandidates(q);renderVariables();save(false);};
 
 function processingCard(q){
-  return `<article class="card setting-card"><div class="setting-head"><strong>${escapeHtml(q.variableName)}　${escapeHtml(q.header)}</strong><select onchange="setMethod(${q.columnIndex},this.value)"><option value="none" ${q.method==="none"?"selected":""}>1. 加工しない</option><option value="prefix" ${q.method==="prefix"?"selected":""}>2. 先頭の整数を利用</option><option value="manual" ${q.method==="manual"?"selected":""}>3. 回答ごとに番号を手動設定</option><option value="multi" ${q.method==="multi"?"selected":""}>4. 複数選択を選択肢別の有無に分ける</option></select></div>${q.method==="none"?'<p class="help">元の値を残します。</p>':processingDetails(q)}</article>`;
+  return `<article class="card setting-card" data-question-card="${q.columnIndex}"><div class="setting-head"><strong>${escapeHtml(q.variableName)}　${escapeHtml(q.header)}</strong><select onchange="setMethod(${q.columnIndex},this.value)"><option value="none" ${q.method==="none"?"selected":""}>1. 加工しない</option><option value="prefix" ${q.method==="prefix"?"selected":""}>2. 先頭の整数を利用</option><option value="manual" ${q.method==="manual"?"selected":""}>3. 回答ごとに番号を手動設定</option><option value="multi" ${q.method==="multi"?"selected":""}>4. 複数選択を選択肢別の有無に分ける</option></select></div>${q.method==="none"?'<p class="help">元の値を残します。</p>':processingDetails(q)}</article>`;
 }
 function processingDetails(q){
   refreshOtherCandidates(q);
-  return `${q.method==="multi"?multiGroupingSettings(q):""}<div class="notice">${q.method==="multi"?(groupedOtherEnabled(q)?"指定した範囲だけを個別の1/0列にし、範囲外は1つの「その他」列にまとめます。":"選択肢ごとに1/0列を作成します。"):"抽出した番号は手動修正できます。"}</div>${q.hasOther||q.otherCandidates.length||groupedOtherEnabled(q)?otherSettings(q):""}<div class="toolbar"><button class="button" onclick="downloadMap(${q.columnIndex})">この設問の対応表を保存</button><button class="icon-button reload-map" onclick="updatePreview()" title="最新の編集内容を再読み込み" aria-label="最新の編集内容を再読み込み">↻</button><label class="button">対応表を読込<input hidden type="file" accept=".xlsx,.csv" onchange="importMap(${q.columnIndex},this.files[0])"></label></div><div class="option-list" data-question="${q.columnIndex}">${effectiveOptions(q).map((o,j)=>{const grouped=groupedOtherEnabled(q)&&j>=officialCount(q);return `<div class="option-card ${grouped?"grouped-option":""}"><span class="drag-handle">☰</span><span>${escapeHtml(o.label)}${o.isOther?'<span class="badge">その他</span>':""}${grouped?'<span class="badge">その他へ集約</span>':""}</span>${q.method==="multi"?`<strong>${grouped?escapeHtml(q.variableName)+"-"+(officialCount(q)+1):escapeHtml(q.variableName)+"-"+escapeHtml(o.code)}</strong>`:`<input value="${escapeHtml(o.code)}" onchange="setCode(${q.columnIndex},${j},this.value)">`}</div>`;}).join("")}</div><div class="question-complete-row"><button class="button primary complete-button" onclick="updatePreview()">完了</button></div>`;
+  return `${q.method==="multi"?multiGroupingSettings(q):""}<div class="notice">${q.method==="multi"?(groupedOtherEnabled(q)?"指定した範囲だけを個別の1/0列にし、範囲外は1つの「その他」列にまとめます。":"選択肢ごとに1/0列を作成します。"):"抽出した番号は手動修正できます。"}</div>${q.hasOther||q.otherCandidates.length||groupedOtherEnabled(q)?otherSettings(q):""}<div class="toolbar"><button class="button" onclick="downloadMap(${q.columnIndex})">この設問の対応表を保存</button><button class="icon-button reload-map" onclick="reloadQuestion(${q.columnIndex},this)" title="最新の編集内容を再読み込み" aria-label="最新の編集内容を再読み込み">↻</button><label class="button">対応表を読込<input hidden type="file" accept=".xlsx,.csv" onchange="importMap(${q.columnIndex},this.files[0])"></label></div><div class="option-list" data-question="${q.columnIndex}">${effectiveOptions(q).map((o,j)=>{const grouped=groupedOtherEnabled(q)&&j>=officialCount(q);return `<div class="option-card ${grouped?"grouped-option":""}"><span class="drag-handle">☰</span><span>${escapeHtml(o.label)}${o.isOther?'<span class="badge">その他</span>':""}${grouped?'<span class="badge">その他へ集約</span>':""}</span>${q.method==="multi"?`<strong>${grouped?escapeHtml(q.variableName)+"-"+(officialCount(q)+1):escapeHtml(q.variableName)+"-"+escapeHtml(o.code)}</strong>`:`<input value="${escapeHtml(o.code)}" onchange="setCode(${q.columnIndex},${j},this.value)">`}</div>`;}).join("")}</div><div class="question-complete-row"><button class="button primary complete-button" onclick="completeQuestion(${q.columnIndex},this)">完了</button></div>`;
 }
 function multiGroupingSettings(q){
   const count=officialCount(q), total=(q.options||[]).length;
@@ -172,13 +172,68 @@ function otherSettings(q){
 }
 function renderProcessing(){if(!questions.length)return;$("#processing").innerHTML=questions.filter(q=>q.include).map(processingCard).join("");initDrag();updatePreview();}
 window.setMethod=(i,v)=>{const q=questions[i];q.method=v;if(v==="prefix"){q.options.forEach(o=>{const n=leadingInteger(o.label);o.code=n??".";});q.options.sort((a,b)=>{const an=leadingInteger(a.label),bn=leadingInteger(b.label);if(an===null&&bn===null)return 0;if(an===null)return 1;if(bn===null)return-1;return an-bn;});}renderProcessing();save(false);};
-window.setCode=(i,j,v)=>{questions[i].options[j].code=v||".";updatePreview();save(false);};
+window.setCode=(i,j,v)=>{questions[i].options[j].code=v||".";questions[i].completed=false;updatePreview();save(false);};
 window.setGroupOutside=(i,v)=>{const q=questions[i];q.groupOutsideAsOther=v;if(v){q.officialOptionCount=Math.min(Number(q.officialOptionCount)||Math.max(1,(q.options||[]).length-1),(q.options||[]).length);q.groupedOtherLabel=q.groupedOtherLabel||"その他";}refreshOtherCandidates(q);renderProcessing();save(false);};
 window.setOfficialCount=(i,v)=>{const q=questions[i];q.officialOptionCount=Math.min((q.options||[]).length,Math.max(1,Number(v)||1));refreshOtherCandidates(q);renderProcessing();save(false);};
 window.setGroupedOtherLabel=(i,v)=>{questions[i].groupedOtherLabel=v.trim()||"その他";updatePreview();save(false);};
 window.setOtherMode=(i,v)=>{questions[i].otherMode=v;renderProcessing();save(false);};
-window.setCandidateAction=(i,j,v)=>{const candidate=questions[i].otherCandidates[j];candidate.action=v;if(v!=="map")candidate.targetCode="";renderProcessing();save(false);};
-window.setCandidateTarget=(i,j,v)=>{questions[i].otherCandidates[j].targetCode=v;updatePreview();save(false);};
+window.setCandidateAction=(i,j,v)=>{const q=questions[i],candidate=q.otherCandidates[j];candidate.action=v;if(v!=="map")candidate.targetCode="";q.completed=false;renderProcessing();save(false);};
+window.setCandidateTarget=(i,j,v)=>{questions[i].otherCandidates[j].targetCode=v;questions[i].completed=false;renderProcessing();save(false);};
+function setActionFeedback(button,text,isError=false){
+  if(!button)return;
+  const original=button.dataset.originalLabel||button.textContent.trim();
+  button.dataset.originalLabel=original;
+  button.textContent=text;
+  button.classList.toggle("action-error",isError);
+  window.setTimeout(()=>{button.textContent=button.dataset.originalLabel;button.classList.remove("action-error");},1400);
+}
+function rebuildQuestionState(q){
+  if(!q)throw new Error("対象の設問が見つかりません。");
+  normaliseOtherCandidates(q);
+  refreshOtherCandidates(q);
+  if(q.method==="multi"){
+    q.options.forEach((option,index)=>{option.code=index+1;});
+  }
+  q.completed=true;
+  return buildOutput();
+}
+window.completeQuestion=(index,button)=>{
+  try{
+    const q=questions[index];
+    rebuildQuestionState(q);
+    save(false);
+    renderProcessing();
+    updatePreview();
+    const current=document.querySelector(`.setting-card[data-question-card="${index}"] .complete-button`);
+    setActionFeedback(current||button,"✓ 保存済み");
+  }catch(error){setActionFeedback(button,"保存失敗",true);alert(`編集内容を保存できませんでした。\n${error.message}`);}
+};
+window.reloadQuestion=(index,button)=>{
+  try{
+    const q=questions[index];
+    if(button){button.disabled=true;button.classList.add("is-reloading");}
+    rebuildQuestionState(q);
+    renderProcessing();
+    updatePreview();
+    save(false);
+    const current=document.querySelector(`.setting-card[data-question-card="${index}"] .reload-map`);
+    setActionFeedback(current||button,"✓");
+  }catch(error){setActionFeedback(button,"!",true);alert(`再読み込みできませんでした。\n${error.message}`);}
+  finally{if(button){button.disabled=false;button.classList.remove("is-reloading");}}
+};
+window.reloadAll=(button)=>{
+  try{
+    if(button){button.disabled=true;button.classList.add("is-reloading");}
+    questions.filter(q=>q.include).forEach(rebuildQuestionState);
+    const out=buildOutput();
+    const summary=$("#summary");
+    if(summary)summary.innerHTML=`加工後は <strong>${out.rows.length}</strong> 行 × <strong>${out.headers.length}</strong> 列です。欠測値は「.」です。<span class="reload-success">✓ 最新設定を反映しました</span>`;
+    updatePreview();
+    save(false);
+    setActionFeedback(button,"✓ 反映済み");
+  }catch(error){setActionFeedback(button,"再読込失敗",true);alert(`設定を再読み込みできませんでした。\n${error.message}`);}
+  finally{if(button){button.disabled=false;button.classList.remove("is-reloading");}}
+};
 function initDrag(){$$(".option-list").forEach(list=>list.querySelectorAll(".option-card").forEach(card=>{card.querySelector(".drag-handle").onpointerdown=event=>startDrag(event,list,card);}));}
 function startDrag(event,list,card){event.preventDefault();const oldIndex=[...list.children].indexOf(card),placeholder=document.createElement("div");placeholder.className="option-card ghost";placeholder.style.height=`${card.offsetHeight}px`;card.after(placeholder);card.style.cssText=`position:fixed;z-index:500;width:${placeholder.offsetWidth}px;pointer-events:none;opacity:.92`;document.body.append(card);const move=e=>{card.style.left=`${e.clientX+12}px`;card.style.top=`${e.clientY+12}px`;const target=document.elementFromPoint(e.clientX,e.clientY)?.closest?.(".option-card");if(target&&target!==placeholder&&target.parentElement===list){const box=target.getBoundingClientRect();e.clientY<box.top+box.height/2?list.insertBefore(placeholder,target):target.after(placeholder);}};const up=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);placeholder.replaceWith(card);card.removeAttribute("style");const options=questions[Number(list.dataset.question)].options,[moved]=options.splice(oldIndex,1);options.splice([...list.children].indexOf(card),0,moved);renderProcessing();save(false);};window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);move(event);}
 
@@ -296,5 +351,5 @@ window.exportCSV=()=>{const out=buildOutput(),csv=[out.headers,...out.rows].map(
 
 function save(show){if(!headers.length)return;try{localStorage.setItem(STORAGE_KEY,JSON.stringify({headers,rows,questions,currentStep,includeId}));if(show)alert("一時保存しました。");}catch(e){alert("一時保存できませんでした。データ量が大きすぎる可能性があります。");}}
 window.saveNow=()=>save(true); window.clearSave=()=>{localStorage.removeItem(STORAGE_KEY);alert("一時保存を削除しました。");};
-window.go=go;function go(step){currentStep=step;$$('.panel').forEach(panel=>panel.classList.toggle('active',Number(panel.dataset.step)===step));$$('.step-nav button').forEach(button=>button.classList.toggle('active',Number(button.dataset.step)===step));if(step===2)renderVariables();if(step===3)renderProcessing();if(step===4){const out=buildOutput();$("#summary").innerHTML=`加工後は <strong>${out.rows.length}</strong> 行 × <strong>${out.headers.length}</strong> 列です。欠測値は「.」です。`;}updatePreview();save(false);}
+window.go=go;function go(step){currentStep=step;$$('.panel').forEach(panel=>panel.classList.toggle('active',Number(panel.dataset.step)===step));$$('.step-nav button').forEach(button=>button.classList.toggle('active',Number(button.dataset.step)===step));if(step===2)renderVariables();if(step===3)renderProcessing();if(step===4){reloadAll();}updatePreview();save(false);}
 document.addEventListener("DOMContentLoaded",()=>{$("#answerFile").onchange=e=>e.target.files[0]&&loadAnswers(e.target.files[0]);$$('.step-nav button').forEach(button=>button.onclick=()=>{const step=Number(button.dataset.step);if(step===1||headers.length)go(step);});const saved=localStorage.getItem(STORAGE_KEY);if(saved&&confirm("一時保存された作業を再開しますか？")){try{const state=JSON.parse(saved);headers=state.headers||[];rows=state.rows||[];questions=state.questions||[];questions.forEach(q=>{q.groupOutsideAsOther=q.groupOutsideAsOther===true;q.officialOptionCount=Number(q.officialOptionCount)||Math.max(1,(q.options||[]).length);q.groupedOtherLabel=q.groupedOtherLabel||"その他";normaliseOtherCandidates(q);refreshOtherCandidates(q);});includeId=state.includeId!==false;go(Math.max(2,state.currentStep||2));}catch{localStorage.removeItem(STORAGE_KEY);}}});

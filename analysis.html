@@ -10,7 +10,7 @@
   <meta content="数値化したアンケート回答とV番号対応表から、単純集計、表、グラフを作成します。" name="description"/>
   <meta content="アンケート,簡易分析,単純集計,V番号,SA,MA,Excel,CSV,グラフ" name="keywords"/>
   <link href="css/style.css" rel="stylesheet"/>
-  <link href="css/analysis.css?v=20261013-2" rel="stylesheet"/>
+  <link href="css/analysis.css?v=20261013-5" rel="stylesheet"/>
   <script src="js/config.js">
   </script>
   <script src="js/site-data.js">
@@ -21,7 +21,7 @@
   </script>
   <script src="vendor/jszip.min.js">
   </script>
-  <script defer="" src="js/analysis.js?v=20261013-2">
+  <script defer="" src="js/analysis.js?v=20261013-5">
   </script>
   <meta content="index,follow" name="robots"/>
  </head>
@@ -94,6 +94,17 @@
     <p>
      「加工済みアンケートデータ.xlsx」と「加工済み_設問別対応表.xlsx」を使い、対応表に定義された回答選択肢だけを設問ごとに集計します。
     </p>
+   </section>
+   <section class="analysis-save-panel" aria-label="簡易分析の途中保存">
+    <div>
+     <strong>簡易分析の途中保存</strong>
+     <span id="analysisSaveStatus">保存データはありません。</span>
+    </div>
+    <div class="analysis-save-actions">
+     <button class="button primary" id="saveAnalysisWorkspace" type="button">途中保存</button>
+     <button class="button" id="resumeAnalysisWorkspace" type="button">保存データから再開</button>
+     <button class="button danger" id="deleteAnalysisWorkspace" type="button">途中保存を削除</button>
+    </div>
    </section>
    <section class="analysis-upload-grid">
     <article class="analysis-upload-card">

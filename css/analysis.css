@@ -10,3 +10,21 @@
 .analysis-chart-control{display:flex;justify-content:flex-end;margin:-4px 0 12px}.analysis-chart-control label{display:flex;align-items:center;gap:8px;font-size:.84rem;font-weight:700}.analysis-chart-control select{padding:7px 10px;border:1px solid var(--line,#ddd6e8);border-radius:9px;background:var(--card,#fff);color:var(--text,#262229)}
 .analysis-pie-wrap{display:grid;grid-template-columns:minmax(180px,260px) 1fr;gap:20px;align-items:center}.analysis-pie{width:min(240px,100%);aspect-ratio:1;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05)}.analysis-pie-legend{display:grid;gap:7px;font-size:.8rem}.analysis-pie-legend span{display:flex;align-items:flex-start;gap:7px}.analysis-pie-legend i{flex:0 0 10px;width:10px;height:10px;margin-top:3px;border-radius:3px}
 @media(max-width:700px){.analysis-pie-wrap{grid-template-columns:1fr}.analysis-pie{margin:auto}}
+/* style.css の実変数名に合わせた簡易分析専用配色 */
+.analysis-format-note{border-left-color:var(--p);background:var(--ps);color:var(--t)}
+.analysis-format-note strong{color:var(--p)}
+.analysis-result-card{border-color:var(--b);background:var(--s);box-shadow:var(--shadow)}
+.analysis-v-number{background:var(--ps);color:var(--p)}
+.analysis-meta,.analysis-card-actions,.analysis-empty{color:var(--m)}
+.analysis-table th{background:var(--table-head);color:var(--t)}
+.analysis-table th,.analysis-table td{border-bottom-color:var(--b)}
+.analysis-chart-control select{border-color:var(--b);background:var(--field);color:var(--field-text)}
+.analysis-bar-track{height:18px;background:color-mix(in srgb,var(--p) 12%,var(--s));border:1px solid color-mix(in srgb,var(--p) 18%,var(--b))}
+.analysis-bar{min-width:0;background:linear-gradient(90deg,var(--p),#9b78dd);box-shadow:0 2px 7px rgba(103,58,183,.24)}
+.analysis-bar-row.has-value .analysis-bar{min-width:5px}
+.analysis-pie{border:1px solid var(--b);box-shadow:var(--shadow)}
+.analysis-pie-legend{color:var(--t)}
+.analysis-card-actions{flex-wrap:wrap}.analysis-card-actions .button{cursor:pointer}.analysis-card-actions .button.primary{background:var(--p);border-color:var(--p);color:#fff}
+.analysis-save-panel{display:flex;justify-content:space-between;align-items:center;gap:18px;margin:0 0 20px;padding:16px 18px;border:1px solid var(--b);border-left:5px solid var(--p);border-radius:14px;background:var(--s);box-shadow:var(--shadow)}
+.analysis-save-panel>div:first-child{display:grid;gap:3px}.analysis-save-panel strong{color:var(--p)}.analysis-save-panel span{color:var(--m);font-size:.86rem}.analysis-save-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}.analysis-save-actions .danger{color:#b42318;border-color:#e5b7b2;background:#fff8f7}.analysis-save-actions button:disabled{cursor:not-allowed;opacity:.5}
+@media(max-width:760px){.analysis-save-panel{display:grid}.analysis-save-actions{justify-content:flex-start}}

@@ -10,7 +10,7 @@
   <meta content="数値化したアンケート回答とV番号対応表から、単純集計、表、グラフを作成します。" name="description"/>
   <meta content="アンケート,簡易分析,単純集計,V番号,SA,MA,Excel,CSV,グラフ" name="keywords"/>
   <link href="css/style.css" rel="stylesheet"/>
-  <link href="css/analysis.css?v=20261013-5" rel="stylesheet"/>
+  <link href="css/analysis.css?v=20261013-7" rel="stylesheet"/>
   <script src="js/config.js">
   </script>
   <script src="js/site-data.js">
@@ -21,7 +21,8 @@
   </script>
   <script src="vendor/jszip.min.js">
   </script>
-  <script defer="" src="js/analysis.js?v=20261013-5">
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script defer="" src="js/analysis.js?v=20261013-7">
   </script>
   <meta content="index,follow" name="robots"/>
  </head>
@@ -161,8 +162,8 @@
      <button class="button" onclick="downloadAllCSVs()">
       全CSVをZIPでDL
      </button>
-     <button class="button" onclick="downloadAllCharts()">
-      全グラフをZIPでDL
+     <button class="button" onclick="downloadAllPDF()">
+      全設問PDF
      </button>
      <button class="button primary" onclick="downloadAllReports()">
       全表＋グラフをZIPでDL

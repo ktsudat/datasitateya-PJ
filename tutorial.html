@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   使い方｜アンケート数値化・分析支援ツール｜データ仕立て屋
+  </title>
+  <link href="css/style.css" rel="stylesheet"/>
+  <script src="js/config.js">
+  </script>
+  <script src="js/site-data.js">
+  </script>
+  <script defer="" src="js/common.js">
+  </script>
+  <meta content="フォーム回答のコーディング、V番号による数値化、簡易分析、表・グラフ作成をブラウザ上で支援します。" name="description"/>
+  <meta content="アンケート,コーディング,数値化,簡易分析,単純集計,フォーム,Excel,CSV,SA,MA,グラフ" name="keywords"/>
+  <meta content="index,follow" name="robots"/>
+ </head>
+ <body>
+  <header class="site-header">
+   <a class="logo" href="index.html">
+    <img alt="ロゴ" class="brand-logo"/>
+    <span>
+     データ仕立て屋
+     <small>
+      アンケート数値化・分析支援ツール
+     </small>
+    </span>
+   </a>
+   <nav class="desktop-nav">
+    <a href="index.html">
+     ホーム
+    </a>
+    <a href="coding.html">
+     コーディング作業
+    </a>
+    <a href="analysis.html">
+     簡易分析
+    </a>
+    <a href="tutorial.html">
+     使い方・Q&amp;A
+    </a>
+    <a href="notices.html">
+     お知らせ
+    </a>
+    <a href="terms.html">
+     利用規約
+    </a>
+    <a href="#related-links">
+     関連リンク
+    </a>
+    <button class="icon-button" onclick="toggleTheme()">
+     ◐
+    </button>
+   </nav>
+   <button class="menu-button">
+    ☰
+   </button>
+  </header>
+  <nav class="mobile-nav">
+   <a href="index.html">
+    ホーム
+   </a>
+   <a href="coding.html">
+    コーディング作業
+   </a>
+   <a href="analysis.html">
+    簡易分析
+   </a>
+   <a href="tutorial.html">
+    使い方・Q&amp;A
+   </a>
+   <a href="notices.html">
+    お知らせ
+   </a>
+   <a href="terms.html">
+    利用規約
+   </a>
+   <a href="#related-links">
+    関連リンク
+   </a>
+  </nav>
+  <main class="page-main">
+   <section class="page-heading">
+    <h1>
+     使い方
+    </h1>
+    <p class="tutorial-intro">
+     画面の順番に沿って進めれば、専門的な知識がなくても回答データを整理できます。
+    </p>
+   </section>
+   <div class="analysis-prerequisite">
+    本サイトはGoogleフォームから出力した回答データの利用を前提として設計しています。
+   </div>
+   <div class="tutorial-grid">
+    <section class="tutorial-card">
+     <span class="tutorial-number">
+      1
+     </span>
+     <h2>
+      回答データを読み込む
+     </h2>
+     <p>
+      ExcelまたはCSVを選びます。質問票PDFがある場合は、Googleフォームの印刷画面から保存したPDFも読み込みます。
+     </p>
+     <div class="tutorial-example">
+      <strong>
+       ポイント：
+      </strong>
+      PDFがなくても作業できます。
+     </div>
+    </section>
+    <section class="tutorial-card">
+     <span class="tutorial-number">
+      2
+     </span>
+     <h2>
+      ID番号を付けるか選ぶ
+     </h2>
+     <p>
+      変数名を設定する画面で、「ID番号を付ける」を選べます。付ける場合は、加工後データの先頭列がV0となり、上から順に1、2、3&hellip;の番号が入ります。
+     </p>
+     <div class="tutorial-example">
+      <strong>
+       ポイント：
+      </strong>
+      ID番号が不要な場合はチェックを外してください。通常の設問番号はV1から始まります。
+     </div>
+    </section>
+    <section class="tutorial-card">
+     <span class="tutorial-number">
+      3
+     </span>
+     <h2>
+      使う設問と変数名を確認する
+     </h2>
+     <p>
+      分析に使う設問を選び、V1、V2などの変数名を確認します。
+     </p>
+     <div class="tutorial-example">
+      <strong>
+       ポイント：
+      </strong>
+      使わない列はチェックを外します。
+     </div>
+    </section>
+    <section class="tutorial-card">
+     <span class="tutorial-number">
+      4
+     </span>
+     <h2>
+      回答形式を確認する
+     </h2>
+     <p>
+      単一選択、複数選択、自由回答、数値、日時から正しい形式を選びます。
+     </p>
+     <div class="tutorial-example">
+      <strong>
+       ポイント：
+      </strong>
+      自動判定が違う場合は手動で直せます。
+     </div>
+    </section>
+    <section class="tutorial-card">
+     <span class="tutorial-number">
+      5
+     </span>
+     <h2>
+      番号と順番を整える
+     </h2>
+     <p>
+      三本線をつまんで選択肢を並べ替えます。
+     </p>
+     <div class="tutorial-example">
+      <strong>
+       ポイント：
+      </strong>
+      「1.20代」は先頭の「1」を使い、「1.2」にはなりません。
+     </div>
+    </section>
+    <section class="tutorial-card">
+     <span class="tutorial-number">
+      6
+     </span>
+     <h2>
+      「その他」を決める
+     </h2>
+     <p>
+      複数回答では、選択した選択肢を「1」、選択しなかった選択肢を「0」にします。回答そのものが空白のとき、または選択肢外の値などのエラーがあるときだけ、欠測値「.」にします。「その他」は、次の枝番として扱うか、回答全体を欠測値「.」にするかを選べます。
+     </p>
+     <div class="tutorial-example">
+      <strong>
+       例：
+      </strong>
+      選択肢1～4のうち1と2を選んだ場合は「1, 1, 0, 0」です。無回答の場合は「., ., ., .」です。
+     </div>
+    </section>
+    <section class="tutorial-card">
+     <span class="tutorial-number">
+      7
+     </span>
+     <h2>
+      確認して保存する
+     </h2>
+     <p>
+      プレビューで列名、0・1、欠測値を確認し、ExcelまたはCSVで保存します。
+     </p>
+     <div class="tutorial-example">
+      <strong>
+       ポイント：
+      </strong>
+      PDFの解析結果は必ず確認してください。
+     </div>
+    </section>
+   </div>
+   <section class="analysis-tutorial-section">
+    <p class="tutorial-kicker">
+     BEGINNER GUIDE
+    </p>
+    <h2 class="section-title">
+     はじめて使う方へ
+    </h2>
+    <p class="tutorial-lead">
+     このページでは、ファイルを用意するところから、コーディング、簡易分析、保存までを順番に説明します。最初は一度にすべて理解しなくても大丈夫です。上から順に進めてください。
+    </p>
+    <div class="manual-download-card">
+     <div>
+      <p class="manual-label">
+       PDF MANUAL
+      </p>
+      <h3>
+       図を見ながら読める詳細マニュアル
+      </h3>
+      <p>
+       画面を開く前の準備、各ステップの操作、SA・MA・欠測値の意味、簡易分析、困ったときの確認方法をPDFにまとめています。
+      </p>
+      <p class="ai-note">
+       このPDFは生成AIを使用して作成し、内容と構成を確認したものです。
+      </p>
+     </div>
+     <a class="button primary" href="PDF/アンケート分析支援ツール_詳細な使い方.pdf" rel="noopener" target="_blank">
+      詳細マニュアルPDFを読む
+     </a>
+    </div>
+    <div class="beginner-flow">
+     <article>
+      <span>
+       準備
+      </span>
+      <h3>
+       回答ファイルを確認する
+      </h3>
+      <p>
+       フォームから回答をExcelまたはCSVで出力します。質問票PDFを使う場合は、回答ファイルとは別に用意します。先頭行が設問名になっていることも確認してください。
+      </p>
+     </article>
+     <article>
+      <span>
+       読込み
+      </span>
+      <h3>
+       コーディング作業を開く
+      </h3>
+      <p>
+       「コーディング作業」で回答ファイルを選びます。必要に応じて質問票PDFも読み込みます。ファイルが読み込まれたら、回答数と設問数を確認します。
+      </p>
+     </article>
+     <article>
+      <span>
+       設定
+      </span>
+      <h3>
+       V番号と回答形式を確認する
+      </h3>
+      <p>
+       V0は回答者を識別するIDです。通常の設問はV1から始まります。SAは1つだけ選ぶ設問、MAは複数選べる設問です。判定が違う場合は画面上で修正します。
+      </p>
+     </article>
+     <article>
+      <span>
+       加工
+      </span>
+      <h3>
+       選択肢の順番と数字を整える
+      </h3>
+      <p>
+       回答選択肢の順番と数値を確認します。MAは選択した項目が1、選択しなかった項目が0、無回答またはエラーが「.」になります。
+      </p>
+     </article>
+     <article>
+      <span>
+       確認
+      </span>
+      <h3>
+       プレビューで間違いがないか見る
+      </h3>
+      <p>
+       保存前にプレビューを開き、V0、V番号、選択肢の数値、MAの枝番、欠測値を確認します。元の回答と見比べると安心です。
+      </p>
+     </article>
+     <article>
+      <span>
+       保存
+      </span>
+      <h3>
+       加工済みデータと対応表を保存する
+      </h3>
+      <p>
+       加工済みExcelまたはCSVを保存します。簡易分析を使う場合は、全設問の回答選択肢対応表もExcelで保存してください。
+      </p>
+     </article>
+     <article>
+      <span>
+       分析
+      </span>
+      <h3>
+       2つのExcelを簡易分析へ読み込む
+      </h3>
+      <p>
+       加工済みデータと対応表を選択し、「簡易分析を実行」を押します。V0は除外され、MAのV5-1、V5-2などはV5という1つの設問にまとまります。
+      </p>
+     </article>
+     <article>
+      <span>
+       出力
+      </span>
+      <h3>
+       表やグラフを保存する
+      </h3>
+      <p>
+       SAは円グラフ、MAは横棒グラフが最初に表示されます。必要に応じて形式を切り替え、Excel・CSV・PNGまたは一括ZIPで保存します。
+      </p>
+     </article>
+    </div>
+   </section>
+   <section class="qa-section">
+    <p class="tutorial-kicker">
+     BEGINNER Q&amp;A
+    </p>
+    <h2 class="section-title">
+     よくある質問
+    </h2>
+    <p class="tutorial-lead">
+     操作に慣れていない方が迷いやすい点を、最初の確認から順番にまとめています。
+    </p>
+    <details>
+     <summary>
+      最初に何を用意すればよいですか？
+     </summary>
+     <p>
+      まず、フォームから出力した回答ExcelまたはCSVを用意してください。質問票PDFがある場合は一緒に用意すると、設問文や選択肢を確認しやすくなります。
+     </p>
+    </details>
+    <details>
+     <summary>
+      ファイルを選んでも画面が変わりません。
+     </summary>
+     <p>
+      ファイル形式がExcelまたはCSVになっているか、ファイルが開いたままになっていないか、サイズが大きすぎないかを確認してください。その後、ページを再読み込みしてもう一度選択します。
+     </p>
+    </details>
+    <details>
+     <summary>
+      質問票PDFは必ず必要ですか？
+     </summary>
+     <p>
+      必須ではありません。回答ファイルだけでも作業できます。PDFは設問文や選択肢の順番を確認する補助資料として使います。
+     </p>
+    </details>
+    <details>
+     <summary>
+      V0は何ですか？消してもよいですか？
+     </summary>
+     <p>
+      V0は回答者を区別するための連番IDです。個々の回答を後から確認する可能性がある場合は付けておくと便利です。不要であれば設定画面でチェックを外せます。通常の設問はどちらの場合もV1から始まります。
+     </p>
+    </details>
+    <details>
+     <summary>
+      SAとMAの違いが分かりません。
+     </summary>
+     <p>
+      SAは「1つだけ選ぶ」設問、MAは「複数選べる」設問です。たとえば年齢区分は通常SA、利用した交通手段を複数選ぶ設問はMAです。
+     </p>
+    </details>
+    <details>
+     <summary>
+      MAの1、0、「.」は何を表しますか？
+     </summary>
+     <p>
+      1はその選択肢を選んだ、0は回答したがその選択肢を選ばなかった、「.」は設問自体が無回答または回答を正しく判定できなかったことを表します。
+     </p>
+    </details>
+    <details>
+     <summary>
+      選択肢の順番が元の質問票と違います。
+     </summary>
+     <p>
+      回答加工の画面で選択肢を並べ替えてください。数字で始まる選択肢は先頭の整数を参考に並びますが、質問票と一致しているか必ず確認してください。
+     </p>
+    </details>
+    <details>
+     <summary>
+      「その他」はどのように扱えばよいですか？
+     </summary>
+     <p>
+      研究や集計の方針に合わせて、独立した選択肢として扱うか、欠測として扱うかを設定します。自由記述の内容を別に確認したい場合は、元の回答ファイルも保管してください。
+     </p>
+    </details>
+    <details>
+     <summary>
+      途中で作業をやめても大丈夫ですか？
+     </summary>
+     <p>
+      一時保存を実行してから終了してください。再開時は同じブラウザと端末を使います。念のため、元の回答ファイルと保存済みの対応表も残してください。
+     </p>
+    </details>
+    <details>
+     <summary>
+      簡易分析にはどのファイルを入れますか？
+     </summary>
+     <p>
+      コーディング作業で保存した加工済みアンケートデータと、全設問の対応表の2つです。元の未加工回答を直接入れるものではありません。
+     </p>
+    </details>
+    <details>
+     <summary>
+      MAがV5-1、V5-2と別々に表示されません。
+     </summary>
+     <p>
+      正常な動作です。枝番は選択肢を表すため、簡易分析ではV5という1つの設問にまとめて表示します。
+     </p>
+    </details>
+    <details>
+     <summary>
+      割合の合計が100%になりません。
+     </summary>
+     <p>
+      MAは複数回答なので、選択率の合計が100%を超えることがあります。自由回答や欠測が含まれる場合も、単純な合計が100%にならないことがあります。
+     </p>
+    </details>
+    <details>
+     <summary>
+      円グラフ以外にできますか？
+     </summary>
+     <p>
+      できます。設問ごとのグラフ選択から、円、ドーナツ、棒、横棒に切り替えられます。選択肢が多い設問は横棒が見やすい場合があります。
+     </p>
+    </details>
+    <details>
+     <summary>
+      保存したファイルはどこにありますか？
+     </summary>
+     <p>
+      通常はブラウザのダウンロードフォルダーに保存されます。見つからない場合は、ブラウザのダウンロード履歴を確認してください。
+     </p>
+    </details>
+    <details>
+     <summary>
+      読み込んだ回答データは、GitHubや外部サーバーへ送信・保存されますか？
+     </summary>
+     <p>
+      現在のサイトでは、選択したExcel・CSV・PDFをブラウザ内で読み込み、処理します。回答データをGitHubのリポジトリへ取り込んだり、サイト運営者のサーバーへアップロードしたりする処理は設定されていません。GitHub Pagesでサイトを公開している場合も、ページを表示するためのHTML・CSS・JavaScriptなどが配信されるだけで、利用者が選択した回答ファイルが自動的にGitHubへ登録されることはありません。
+     </p>
+    </details>
+    <details>
+     <summary>
+      「外部には保存されない」と「端末にも一切保存されない」は同じ意味ですか？
+     </summary>
+     <p>
+      同じ意味ではありません。元の回答ファイルそのものをGitHubや外部サーバーへ送る処理はありませんが、作業を再開できるように、読み込み後の見出し・回答・設問設定・現在の手順などの作業状態が、使用中のブラウザのlocalStorageに一時保存されます。また、利用者が保存したExcel・CSV・PNG・ZIPは、端末のダウンロードフォルダーなどに残ります。したがって、「外部へアップロードされない」一方で、「端末内にも何も残らない」という仕様ではありません。
+     </p>
+    </details>
+    <details>
+     <summary>
+      一時保存はどのような仕組みですか？
+     </summary>
+     <p>
+      コーディング作業では、作業中の回答データと設定をブラウザのlocalStorageへ保存します。localStorageは、その端末とブラウザの中でサイトごとに用意される保存領域です。作業画面を開き直したときに一時保存が見つかると、再開するか確認されます。一時保存はクラウド同期や共同編集のための機能ではなく、同じ端末・同じブラウザで作業を再開するための機能です。ブラウザの設定、プライベートブラウズ、サイトデータの削除などにより、保存内容が消えることがあります。
+     </p>
+    </details>
+    <details>
+     <summary>
+      一時保存には何が入りますか？元のファイルがそのまま保存されますか？
+     </summary>
+     <p>
+      一時保存には、読み込み後の列見出し、回答行、設問設定、質問票から取得した設定情報、現在の手順、V0を付けるかどうかなどが含まれます。選択したExcel・CSV・PDFファイルを、元のファイル形式のままGitHubへ保存するものではありません。ただし、回答内容を含む作業データがブラウザ内に残るため、アンケートの生データと同じように慎重に扱ってください。
+     </p>
+    </details>
+    <details>
+     <summary>
+      作業後に一時保存を削除するにはどうすればよいですか？
+     </summary>
+     <p>
+      コーディング作業画面の「一時保存を削除」を実行してください。共有端末や借用端末では、作業後に一時保存を削除し、ダウンロードフォルダー、ゴミ箱、ブラウザのダウンロード履歴も確認してください。必要に応じて、ブラウザの設定からこのサイトの保存データを削除します。削除前に、必要な加工済みデータや対応表を安全な保存先へ移しておいてください。
+     </p>
+    </details>
+    <details>
+     <summary>
+      共有パソコンや公共の端末で使用してもよいですか？
+     </summary>
+     <p>
+      個人情報や未公開の回答を含む場合は、共有端末・公共端末での使用を避けることを推奨します。やむを得ず使用する場合は、事前に不要な氏名・メールアドレス・自由記述を削除または匿名化し、作業後に一時保存とダウンロードファイルを削除してください。ブラウザや端末の管理者が、端末内の保存データへアクセスできる可能性も考慮してください。
+     </p>
+    </details>
+    <details>
+     <summary>
+      データが外部へ送信されていないことを、利用者側で確認できますか？
+     </summary>
+     <p>
+      技術的な確認が必要な場合は、ブラウザの開発者ツールにある「ネットワーク」画面を開いてからファイルを読み込み、回答ファイルの内容を送る通信が発生していないことを確認できます。現在の構成では、回答データを送信するためのアップロード先や送信処理は用意されていません。ただし、ブラウザ拡張機能、端末の監視ソフト、改変された配布物など、サイト本体以外の環境までは本サイトで保証できません。信頼できる端末とブラウザを使用してください。
+     </p>
+    </details>
+    <details>
+     <summary>
+      個人情報を含む回答を扱うときの注意点は？
+     </summary>
+     <p>
+      必要のない氏名や連絡先は事前に削除または匿名化し、共有端末では作業後にダウンロードファイルや一時保存の扱いを確認してください。
+     </p>
+    </details>
+   </section>
+  </main>
+  <footer class="site-footer-panel" id="related-links">
+   <div class="footer-inner">
+    <div class="footer-columns">
+     <section>
+      <h2 class="footer-heading">
+       メニュー
+      </h2>
+      <nav class="footer-links">
+       <a href="index.html">
+        ホーム
+       </a>
+       <a href="coding.html">
+        コーディング作業
+       </a>
+       <a href="analysis.html">
+        簡易分析
+       </a>
+       <a href="tutorial.html">
+        使い方
+       </a>
+       <a href="notices.html">
+        お知らせ
+       </a>
+       <a href="terms.html">
+        利用規約・免責事項
+       </a>
+      </nav>
+     </section>
+     <section>
+      <h2 class="footer-heading">
+       関連リンク
+      </h2>
+      <nav class="footer-links related-links-list">
+      </nav>
+     </section>
+    </div>
+    <div class="footer-copyright">
+     &copy; 2026 アンケート数値化・分析支援ツール｜データ仕立て屋. All rights reserved.
+    </div>
+   </div>
+  </footer>
+ </body>
+</html>

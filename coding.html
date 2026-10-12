@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   コーディング作業｜アンケート数値化・分析支援ツール｜データ仕立て屋
+  </title>
+  <link href="css/style.css" rel="stylesheet"/>
+  <script src="js/config.js">
+  </script>
+  <script src="js/site-data.js">
+  </script>
+  <script defer="" src="js/common.js">
+  </script>
+  <script src="vendor/exceljs-hardened.min.js">
+  </script>
+  <script src="js/app.js" type="module">
+  </script>
+  <meta content="フォーム回答のコーディング、V番号による数値化、簡易分析、表・グラフ作成をブラウザ上で支援します。" name="description"/>
+  <meta content="アンケート,コーディング,数値化,簡易分析,単純集計,フォーム,Excel,CSV,SA,MA,グラフ" name="keywords"/>
+  <meta content="index,follow" name="robots"/>
+ </head>
+ <body class="work-page">
+  <header class="site-header">
+   <a class="logo" href="index.html">
+    <img alt="ロゴ" class="brand-logo"/>
+    <span>
+     データ仕立て屋
+     <small>
+      アンケート数値化・分析支援ツール
+     </small>
+    </span>
+   </a>
+   <nav class="desktop-nav">
+    <a href="index.html">
+     ホーム
+    </a>
+    <a href="coding.html">
+     コーディング作業
+    </a>
+    <a href="analysis.html">
+     簡易分析
+    </a>
+    <a href="tutorial.html">
+     使い方・Q&amp;A
+    </a>
+    <a href="notices.html">
+     お知らせ
+    </a>
+    <a href="terms.html">
+     利用規約
+    </a>
+    <a href="#related-links">
+     関連リンク
+    </a>
+    <button class="icon-button" onclick="toggleTheme()">
+     ◐
+    </button>
+   </nav>
+   <button class="menu-button">
+    ☰
+   </button>
+  </header>
+  <nav class="mobile-nav">
+   <a href="index.html">
+    ホーム
+   </a>
+   <a href="coding.html">
+    コーディング作業
+   </a>
+   <a href="analysis.html">
+    簡易分析
+   </a>
+   <a href="tutorial.html">
+    使い方・Q&amp;A
+   </a>
+   <a href="notices.html">
+    お知らせ
+   </a>
+   <a href="terms.html">
+    利用規約
+   </a>
+   <a href="#related-links">
+    関連リンク
+   </a>
+  </nav>
+  <main>
+   <section class="page-heading">
+    <h1>
+     コーディング作業
+    </h1>
+    <p>
+     自動判定は初期設定です。内容を確認して修正してください。
+    </p>
+   </section>
+   <div class="save-bar">
+    <span>
+     作業内容は使用中のブラウザに一時保存できます。
+    </span>
+    <div class="toolbar">
+     <button class="button" onclick="saveNow()">
+      一時保存
+     </button>
+     <button class="button" onclick="clearSave()">
+      一時保存を削除
+     </button>
+    </div>
+   </div>
+   <div class="workspace">
+    <aside class="card step-nav">
+     <button class="active" data-step="1">
+      1. ファイル読込
+     </button>
+     <button data-step="2">
+      2. 変数名設定
+     </button>
+     <button data-step="3">
+      3. 回答値加工
+     </button>
+     <button data-step="4">
+      4. 確認・保存
+     </button>
+    </aside>
+    <section>
+     <div class="panel active" data-step="1">
+      <div class="drop-zone">
+       <h2>
+        回答データ
+       </h2>
+       <label class="button primary">
+        Excel・CSVを選択
+        <input accept=".xlsx,.csv" hidden="" id="answerFile" type="file"/>
+       </label>
+      </div>
+      <div class="source-grid">
+       <article class="card">
+        <h3>
+         質問票PDF（任意）
+        </h3>
+        <label class="button">
+         PDFを選択
+         <input accept=".pdf" hidden="" id="pdfFile" type="file"/>
+        </label>
+        <p id="pdfStatus">
+        </p>
+       </article>
+       <article class="card">
+        <h3>
+         PDFがない場合
+        </h3>
+        <p>
+         設定は後から手動で修正できます。
+        </p>
+       </article>
+      </div>
+     </div>
+     <div class="panel" data-step="2">
+      <h2>
+       変数名設定
+      </h2>
+      <div class="metrics" id="metrics">
+      </div>
+      <section class="id-setting-card">
+       <div class="id-setting-main">
+        <div class="id-setting-number">
+         V0
+        </div>
+        <div>
+         <h3>
+          ID番号
+         </h3>
+         <p>
+          回答データの先頭に、1、2、3&hellip;の連番を付けます。
+         </p>
+        </div>
+       </div>
+       <label class="id-toggle-label">
+        <input checked="" id="includeId" onchange="setIncludeId(this.checked)" type="checkbox"/>
+        ID番号を付ける
+       </label>
+      </section>
+      <div class="table-wrap">
+       <table>
+        <thead>
+         <tr>
+          <th>
+           使用
+          </th>
+          <th>
+           設問
+          </th>
+          <th>
+           変数名
+          </th>
+          <th>
+           回答形式
+          </th>
+         </tr>
+        </thead>
+        <tbody id="varRows">
+        </tbody>
+       </table>
+      </div>
+      <button class="button primary" onclick="go(3)">
+       次へ
+      </button>
+     </div>
+     <div class="panel" data-step="3">
+      <h2>
+       回答値加工
+      </h2>
+      <p class="processing-lead">
+       「その他」の自由回答は内容を確認し、既存の選択肢として数えるか、「その他」のまま残すか、欠測値にするかを設定できます。
+      </p>
+      <div id="processing">
+      </div>
+      <button class="button primary" onclick="go(4)">
+       次へ
+      </button>
+     </div>
+     <div class="panel" data-step="4">
+      <h2>
+       確認・保存
+      </h2>
+      <div class="card" id="summary">
+      </div>
+      <div class="toolbar">
+       <button class="button primary" onclick="exportExcel()">
+        Excel保存
+       </button>
+       <button class="button" onclick="exportCSV()">
+        CSV保存
+       </button>
+      </div>
+     </div>
+    </section>
+   </div>
+  </main>
+  <section class="preview-dock collapsed" id="previewDock">
+   <div class="preview-head">
+    <strong>
+     リアルタイムプレビュー
+    </strong>
+    <span id="previewInfo">
+    </span>
+    <button class="button" onclick="togglePreview()">
+     開閉
+    </button>
+   </div>
+   <div class="preview-body" id="livePreview">
+   </div>
+  </section>
+  <footer class="site-footer-panel" id="related-links">
+   <div class="footer-inner">
+    <div class="footer-columns">
+     <section>
+      <h2 class="footer-heading">
+       メニュー
+      </h2>
+      <nav class="footer-links">
+       <a href="index.html">
+        ホーム
+       </a>
+       <a href="coding.html">
+        コーディング作業
+       </a>
+       <a href="analysis.html">
+        簡易分析
+       </a>
+       <a href="tutorial.html">
+        使い方
+       </a>
+       <a href="notices.html">
+        お知らせ
+       </a>
+       <a href="terms.html">
+        利用規約・免責事項
+       </a>
+      </nav>
+     </section>
+     <section>
+      <h2 class="footer-heading">
+       関連リンク
+      </h2>
+      <nav class="footer-links related-links-list">
+      </nav>
+     </section>
+    </div>
+    <div class="footer-copyright">
+     &copy; 2026 アンケート数値化・分析支援ツール｜データ仕立て屋. All rights reserved.
+    </div>
+   </div>
+  </footer>
+ </body>
+</html>

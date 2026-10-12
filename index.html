@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   ホーム｜アンケート数値化・分析支援ツール｜データ仕立て屋
+  </title>
+  <link href="css/style.css" rel="stylesheet"/>
+  <script src="js/config.js">
+  </script>
+  <script src="js/site-data.js">
+  </script>
+  <script defer="" src="js/common.js">
+  </script>
+  <meta content="フォーム回答のコーディング、V番号による数値化、簡易分析、表・グラフ作成をブラウザ上で支援します。" name="description"/>
+  <meta content="アンケート,コーディング,数値化,簡易分析,単純集計,フォーム,Excel,CSV,SA,MA,グラフ" name="keywords"/>
+  <meta content="index,follow" name="robots"/>
+  <style>
+   /* 表紙は画像だけをそのまま表示する */
+.cover {
+  background: none !important;
+}
+
+.cover::before,
+.cover::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+
+.cover-image {
+  filter: none !important;
+  opacity: 1 !important;
+}
+  </style>
+ </head>
+ <body>
+  <div class="splash">
+   <div>
+    <img alt="ロゴ" class="brand-logo"/>
+    <p>
+     アンケート分析を、もっと手軽に。
+    </p>
+   </div>
+  </div>
+  <header class="site-header">
+   <a class="logo" href="index.html">
+    <img alt="ロゴ" class="brand-logo"/>
+    <span>
+     データ仕立て屋
+     <small>
+      アンケート数値化・分析支援ツール
+     </small>
+    </span>
+   </a>
+   <nav class="desktop-nav">
+    <a href="index.html">
+     ホーム
+    </a>
+    <a href="coding.html">
+     コーディング作業
+    </a>
+    <a href="analysis.html">
+     簡易分析
+    </a>
+    <a href="tutorial.html">
+     使い方・Q&amp;A
+    </a>
+    <a href="notices.html">
+     お知らせ
+    </a>
+    <a href="terms.html">
+     利用規約
+    </a>
+    <a href="#related-links">
+     関連リンク
+    </a>
+    <button class="icon-button" onclick="toggleTheme()">
+     ◐
+    </button>
+   </nav>
+   <button class="menu-button">
+    ☰
+   </button>
+  </header>
+  <nav class="mobile-nav">
+   <a href="index.html">
+    ホーム
+   </a>
+   <a href="coding.html">
+    コーディング作業
+   </a>
+   <a href="analysis.html">
+    簡易分析
+   </a>
+   <a href="tutorial.html">
+    使い方・Q&amp;A
+   </a>
+   <a href="notices.html">
+    お知らせ
+   </a>
+   <a href="terms.html">
+    利用規約
+   </a>
+   <a href="#related-links">
+    関連リンク
+   </a>
+  </nav>
+  <section class="cover">
+   <img alt="表紙" class="cover-image"/>
+  </section>
+  <main>
+   <section class="hero">
+    <h1>
+     加工から分析まで、
+     <br/>
+     もっと手軽に分かりやすく。
+    </h1>
+    <p>
+     元データの数値化から簡単な集計まで、分析に使うデータづくりを支援します。
+     <br/>
+     無料で使えるブラウザ上のツールで、回答データは利用者の端末内で処理されます。
+    </p>
+    <a class="button primary" href="coding.html">
+     作業を始める
+    </a>
+   </section>
+   <h2 class="section-title">
+    主な機能
+   </h2>
+   <section aria-label="主な機能" class="home-feature-list">
+    <article class="home-feature-row">
+     <div aria-label="コーディング作業の挿絵を配置する16対9の領域" class="home-feature-visual" role="img">
+      <img alt="" loading="lazy" src="foto/coding.png"/>
+     </div>
+     <div class="home-feature-copy">
+      <p class="feature-kicker">
+       CODING
+      </p>
+      <h3>
+       数値化を、
+       <br/>
+       関数なしのマウス操作で。
+      </h3>
+      <p>
+       Excelの関数を使わず、設定をたどりながら回答を数値に変換できます。統計ソフトへ渡す前の準備に使えます。
+      </p>
+      <a href="coding.html">
+       コーディング作業へ
+      </a>
+     </div>
+    </article>
+    <article class="home-feature-row reverse">
+     <div aria-label="簡易分析の挿絵を配置する16対9の領域" class="home-feature-visual" role="img">
+      <img alt="" loading="lazy" src="foto/analysis.png"/>
+     </div>
+     <div class="home-feature-copy">
+      <p class="feature-kicker">
+       ANALYSIS
+      </p>
+      <h3>
+       表もグラフも、
+       <br/>
+       手軽にマウス操作で。
+      </h3>
+      <p>
+       数値化したデータをExcelで図を作り込まなくても、設問ごとの集計表と円グラフ・棒グラフを画面上で確認できます。
+      </p>
+      <a href="analysis.html">
+       簡易分析へ
+      </a>
+     </div>
+    </article>
+    <article class="home-feature-row">
+     <div aria-label="保存と共有の挿絵を配置する16対9の領域" class="home-feature-visual" role="img">
+      <img alt="" loading="lazy" src="foto/seamless.png"/>
+     </div>
+     <div class="home-feature-copy">
+      <p class="feature-kicker">
+       SEAMLESS
+      </p>
+      <h3>
+       数値化から図まで、
+       <br/>
+       一貫して。
+      </h3>
+      <p>
+       回答の数値化から簡単な集計・グラフ作成までを、このサイト内で進められます。結果はExcelや画像で保存できます。
+      </p>
+      <a href="tutorial.html">
+       使い方を見る
+      </a>
+     </div>
+    </article>
+   </section>
+   <h2 class="section-title">
+    最新のお知らせ
+   </h2>
+   <section class="latest-news-box" id="latestNews">
+   </section>
+   <h2 class="section-title">
+    その他のプロジェクト
+   </h2>
+   <section class="project-carousel" id="projectCarousel">
+    <div class="project-track">
+    </div>
+    <button aria-label="前へ" class="carousel-button prev">
+     &lsaquo;
+    </button>
+    <button aria-label="次へ" class="carousel-button next">
+     &rsaquo;
+    </button>
+    <div class="carousel-dots">
+    </div>
+   </section>
+  </main>
+  <footer class="site-footer-panel" id="related-links">
+   <div class="footer-inner">
+    <div class="footer-columns">
+     <section>
+      <h2 class="footer-heading">
+       メニュー
+      </h2>
+      <nav class="footer-links">
+       <a href="index.html">
+        ホーム
+       </a>
+       <a href="coding.html">
+        コーディング作業
+       </a>
+       <a href="analysis.html">
+        簡易分析
+       </a>
+       <a href="tutorial.html">
+        使い方
+       </a>
+       <a href="notices.html">
+        お知らせ
+       </a>
+       <a href="terms.html">
+        利用規約・免責事項
+       </a>
+      </nav>
+     </section>
+     <section>
+      <h2 class="footer-heading">
+       関連リンク
+      </h2>
+      <nav class="footer-links related-links-list">
+      </nav>
+     </section>
+    </div>
+    <div class="footer-copyright">
+     &copy; 2026 アンケート数値化・分析支援ツール｜データ仕立て屋. All rights reserved.
+    </div>
+   </div>
+  </footer>
+ </body>
+</html>

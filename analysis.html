@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   簡易分析｜アンケート数値化・分析支援ツール｜データ仕立て屋
+  </title>
+  <meta content="数値化したアンケート回答とV番号対応表から、単純集計、表、グラフを作成します。" name="description"/>
+  <meta content="アンケート,簡易分析,単純集計,V番号,SA,MA,Excel,CSV,グラフ" name="keywords"/>
+  <link href="css/style.css" rel="stylesheet"/>
+  <script src="js/config.js">
+  </script>
+  <script src="js/site-data.js">
+  </script>
+  <script defer="" src="js/common.js">
+  </script>
+  <script src="vendor/exceljs-hardened.min.js">
+  </script>
+  <script src="vendor/jszip.min.js">
+  </script>
+  <script defer="" src="js/analysis.js">
+  </script>
+  <meta content="index,follow" name="robots"/>
+ </head>
+ <body>
+  <header class="site-header">
+   <a class="logo" href="index.html">
+    <img alt="ロゴ" class="brand-logo"/>
+    <span>
+     データ仕立て屋
+     <small>
+      アンケート数値化・分析支援ツール
+     </small>
+    </span>
+   </a>
+   <nav class="desktop-nav">
+    <a href="index.html">
+     ホーム
+    </a>
+    <a href="coding.html">
+     コーディング作業
+    </a>
+    <a href="analysis.html">
+     簡易分析
+    </a>
+    <a href="tutorial.html">
+     使い方・Q&amp;A
+    </a>
+    <a href="notices.html">
+     お知らせ
+    </a>
+    <a href="terms.html">
+     利用規約
+    </a>
+    <a href="#related-links">
+     関連リンク
+    </a>
+    <button class="icon-button" onclick="toggleTheme()">
+     ◐
+    </button>
+   </nav>
+   <button class="menu-button">
+    ☰
+   </button>
+  </header>
+  <nav class="mobile-nav">
+   <a href="index.html">
+    ホーム
+   </a>
+   <a href="coding.html">
+    コーディング作業
+   </a>
+   <a href="analysis.html">
+    簡易分析
+   </a>
+   <a href="tutorial.html">
+    使い方・Q&amp;A
+   </a>
+   <a href="notices.html">
+    お知らせ
+   </a>
+   <a href="terms.html">
+    利用規約
+   </a>
+  </nav>
+  <main class="page-main analysis-page">
+   <section class="page-heading">
+    <h1>
+     簡易分析
+    </h1>
+    <p>
+     数値化された回答データと、V番号・回答選択肢の対応表を使って設問ごとの単純集計を作成します。
+    </p>
+   </section>
+   <section class="analysis-upload-grid">
+    <article class="analysis-upload-card">
+     <span class="analysis-upload-number">
+      1
+     </span>
+     <h2>
+      数値化された回答データ
+     </h2>
+     <p>
+      コーディング作業で出力した「加工済みアンケートデータ.xlsx」を選択します。
+     </p>
+     <label class="button primary">
+      データExcelを選択
+      <input accept=".xlsx" hidden="" id="analysisDataFile" type="file"/>
+     </label>
+     <div id="dataStatus">
+     </div>
+    </article>
+    <article class="analysis-upload-card">
+     <span class="analysis-upload-number">
+      2
+     </span>
+     <h2>
+      V番号・選択肢対応表
+     </h2>
+     <p>
+      「全設問の対応表を保存」で出力したExcelを選択します。
+     </p>
+     <label class="button primary">
+      対応表Excelを選択
+      <input accept=".xlsx" hidden="" id="analysisMappingFile" type="file"/>
+     </label>
+     <div id="mappingStatus">
+     </div>
+    </article>
+   </section>
+   <div class="analysis-run">
+    <button class="button primary" id="runAnalysis">
+     簡易分析を実行
+    </button>
+    <p id="analysisSummary">
+    </p>
+   </div>
+   <section class="overall-downloads" hidden="" id="overallDownloads">
+    <h2>
+     全体をまとめて保存
+    </h2>
+    <div class="toolbar">
+     <button class="button" onclick="downloadAllExcel()">
+      全設問の表をExcelでDL
+     </button>
+     <button class="button" onclick="downloadAllCSVs()">
+      全CSVをZIPでDL
+     </button>
+     <button class="button" onclick="downloadAllCharts()">
+      全グラフをZIPでDL
+     </button>
+     <button class="button primary" onclick="downloadAllReports()">
+      全表＋グラフをZIPでDL
+     </button>
+    </div>
+   </section>
+   <section class="analysis-results" id="analysisResults">
+   </section>
+  </main>
+  <footer class="site-footer-panel" id="related-links">
+   <div class="footer-inner">
+    <div class="footer-columns">
+     <section>
+      <h2 class="footer-heading">
+       メニュー
+      </h2>
+      <nav class="footer-links">
+       <a href="index.html">
+        ホーム
+       </a>
+       <a href="coding.html">
+        コーディング作業
+       </a>
+       <a href="analysis.html">
+        簡易分析
+       </a>
+       <a href="tutorial.html">
+        使い方・Q&amp;A
+       </a>
+       <a href="notices.html">
+        お知らせ
+       </a>
+       <a href="terms.html">
+        利用規約・免責事項
+       </a>
+      </nav>
+     </section>
+     <section>
+      <h2 class="footer-heading">
+       関連リンク
+      </h2>
+      <nav class="footer-links related-links-list">
+      </nav>
+     </section>
+    </div>
+    <div class="footer-copyright">
+     &copy; 2026 アンケート数値化・分析支援ツール｜データ仕立て屋. All rights reserved.
+    </div>
+   </div>
+  </footer>
+ </body>
+</html>

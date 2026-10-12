@@ -4,12 +4,13 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "../vendor/pdf.worker.mjs";
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
-const STORAGE_KEY = "survey-coding-final-work-v51";
+const STORAGE_KEY = "survey-coding-final-work-final17-final-flow";
 const TYPES = { single: "単一選択（SA）", multi: "複数選択（MA）", text: "自由回答", numeric: "数値", timestamp: "日時" };
-let headers=[], rows=[], questions=[], form={sections:[]}, currentStep=1, previewOpen=false, includeId=true;
+let headers=[], rows=[], questions=[], form={sections:[]}, currentStep=1, previewOpen=false, includeId=true, pendingPdfFile=null;
 
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const normalize = (value) => String(value ?? "").replace(/[\s　。．、,，？?「」『』（）()\[\]]/g, "").toLowerCase();
+const stripAnswerNumber = value => String(value ?? "").replace(/^\s*\d+\s*[.．]\s*/, "").trim();
+const normalize = value => stripAnswerNumber(value).replace(/[\s　。．、,，？?「」『』（）()\[\]]/g, "").toLowerCase();
 const unique = (values) => [...new Set(values.map(v => String(v ?? "").trim()).filter(Boolean))];
 const splitMulti = (value) => String(value ?? "").split(/[,，]\s*/).map(v => v.trim()).filter(Boolean);
 const leadingInteger = (value) => { const match=String(value ?? "").match(/^\s*(\d+)/); return match ? Number(match[1]) : null; };
@@ -128,9 +129,7 @@ async function loadAnswers(file) {
     if (matrix.length<2) throw new Error("見出し行と回答行が必要です。");
     headers=matrix[0].map((v,i)=>String(v||`列${i+1}`));
     rows=matrix.slice(1).filter(row=>row.some(v=>v!==""));
-    makeQuestions(); syncForm(); renumber(); go(1);
-    const pdfStatus=$("#pdfStatus");
-    if(pdfStatus)pdfStatus.textContent="回答データを読み込みました。続けて質問票PDFを選択してください。";
+    makeQuestions(); syncForm(); renumber(); go(1); const st=$("#pdfStatus");if(st)st.innerHTML=`<div class="notice">回答データ読込完了。質問票PDFを選択して「次へ」を押してください。</div>`;
   } catch(error) { alert(`回答データを読み込めませんでした。\n${error.message}`); }
 }
 
@@ -177,7 +176,7 @@ function syncForm(){
     if(match.type==="multi"){question.responseType="multi";question.method="multi";}
     if(match.options.length){
       const observed=observedOptions(question);
-      question.options=match.options.map((option,index)=>({label:observed.find(v=>normalize(v)===normalize(option.label))||option.label,code:index+1,isOther:option.isOther,pdfDisplayNumber:option.number}));question.officialOptionCount=question.options.length;question.groupOutsideAsOther=false;
+      question.options=match.options.map((option,index)=>({label:stripAnswerNumber(option.label),code:index+1,isOther:option.isOther,pdfDisplayNumber:option.number}));question.officialOptionCount=question.options.length;question.groupOutsideAsOther=false;
       refreshOtherCandidates(question);
     }
   });
@@ -187,7 +186,7 @@ async function loadPdf(file){
     if(!file) return; if(file.size>MAX_FILE_SIZE)throw new Error("20MBを超えるPDFは読み込めません。");
     const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,disableFontFace:true}).promise;
     const lines=[]; for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){const page=await pdf.getPage(pageNumber),content=await page.getTextContent();lines.push(...groupPdfLines(content.items,pageNumber));}
-    form={sections:parseForm(lines)}; $("#pdfStatus").innerHTML=`<div class="notice">${escapeHtml(file.name)}：${form.sections.length}問を検出しました。自動設定後に必ず確認してください。</div>`;
+    form={sections:parseForm(lines)};const optionCount=form.sections.reduce((n,x)=>n+x.options.length,0);$("#pdfStatus").innerHTML=`<div class="notice"><strong>PDF読込完了</strong><br>${escapeHtml(file.name)}：${form.sections.length}問、回答選択肢${optionCount}件を検出。PDF掲載順を既定順として記憶しました。</div>`;
     syncForm(); if(questions.length)renderVariables(); save(false);
   }catch(error){alert(`PDFを解析できませんでした。\n${error.message}`);}
 }
@@ -355,10 +354,14 @@ window.downloadAllMaps=()=>exportWorkbook(questions.filter(q=>q.include).map(q=>
 window.importMap=async(i,file)=>{if(!file)return;try{const data=(await readSpreadsheet(file))[0].slice(1).filter(r=>r[1]!=="").sort((a,b)=>Number(a[0])-Number(b[0]));questions[i].options=data.map((r,j)=>({code:Number(r[0])||j+1,label:String(r[1]),isOther:isOtherLabel(r[1])}));questions[i].hasOther=questions[i].options.some(o=>o.isOther);refreshOtherCandidates(questions[i]);renderProcessing();save(false);}catch(e){alert(e.message);}};
 window.importAllMaps=async file=>{if(!file)return;try{const sheets=await readSpreadsheet(file);questions.filter(q=>q.include).forEach((q,i)=>{const data=(sheets[i]||[]).slice(1).filter(r=>r[1]!=="");if(data.length){q.options=data.sort((a,b)=>Number(a[0])-Number(b[0])).map((r,j)=>({code:Number(r[0])||j+1,label:String(r[1]),isOther:isOtherLabel(r[1])}));q.hasOther=q.options.some(o=>o.isOther);refreshOtherCandidates(q);}});renderProcessing();save(false);}catch(e){alert(e.message);}};
 function download(blob,name){const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}
-window.exportExcel=()=>{const out=buildOutput(),maps=[["変数名","元の設問文","回答選択肢"]];out.metadata.forEach((m,i)=>maps.push([out.headers[i],m.isId?"ID番号":m.q.header,m.isId?"1から始まる連番":m.option?.label||""]));return exportWorkbook([["加工済みデータ",[out.headers,...out.rows]],["対応表",maps]],"加工済みアンケートデータ.xlsx");};
+function processedMapRows(){const t=[["変数名","元の質問文","加工方法","出力列・コード","加工後の回答選択肢","元の自由回答","振り分け処理"]];if(includeId)t.push(["V0","ID番号","連番付与","V0","1から始まる連番","",""]);questions.filter(q=>q.include).forEach(q=>{if(q.method==="none"){t.push([q.variableName,q.header,"無加工",q.variableName,"元の値をそのまま出力","","無加工"]);return;}effectiveOptions(q).forEach(o=>t.push([q.variableName,q.header,q.method==="multi"?"複数選択を1/0化":"回答値をコード化",q.method==="multi"?`${q.variableName}-${o.code}`:o.code,o.label,"","選択肢"]));(q.otherCandidates||[]).forEach(c=>{const o=c.action==="map"?effectiveOptions(q).find(x=>String(x.code)===String(c.targetCode)):null;t.push([q.variableName,q.header,"自由回答の振り分け",o?.code||".",o?.label||"欠測値",c.value,c.action==="map"?"既存選択肢へ再分類":c.action==="missing"?"欠測値":"その他として保持"]);});});return t;}
+window.downloadProcessedMap=()=>exportWorkbook([["加工結果対応表",processedMapRows()]],"加工結果_対応表.xlsx");
+window.exportExcel=()=>{const out=buildOutput();return exportWorkbook([["加工済みデータ",[out.headers,...out.rows]],["加工結果対応表",processedMapRows()]],"加工済みアンケートデータ.xlsx");};
 window.exportCSV=()=>{const out=buildOutput(),csv=[out.headers,...out.rows].map(row=>row.map(v=>`"${String(spreadsheetSafe(v)??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");download(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),"加工済みデータ_UTF8.csv");};
 
+window.selectPdfForNext=file=>{pendingPdfFile=file||null;$("#pdfStatus").innerHTML=file?`<div class="notice">${escapeHtml(file.name)}を選択済み。「次へ」でPDFを解析します。</div>`:"";};
+window.proceedFromFiles=async()=>{if(!headers.length){alert("先に回答Excel・CSVを読み込んでください。");return;}const b=$("#fileNextButton");try{if(b){b.disabled=true;b.textContent="PDFを読み込み中…";}if(pendingPdfFile)await loadPdf(pendingPdfFile);else $("#pdfStatus").innerHTML=`<div class="notice">PDFなしで進みます。</div>`;syncForm();renumber();go(2);}catch(e){alert(e.message);}finally{if(b){b.disabled=false;b.textContent="次へ（PDFを読み込んで変数名設定へ）";}}};
 function save(show){if(!headers.length)return;try{localStorage.setItem(STORAGE_KEY,JSON.stringify({headers,rows,questions,form,currentStep,includeId}));if(show)alert("一時保存しました。");}catch(e){alert("一時保存できませんでした。データ量が大きすぎる可能性があります。");}}
 window.saveNow=()=>save(true); window.clearSave=()=>{localStorage.removeItem(STORAGE_KEY);alert("一時保存を削除しました。");};
 window.go=go;function go(step){currentStep=step;$$('.panel').forEach(panel=>panel.classList.toggle('active',Number(panel.dataset.step)===step));$$('.step-nav button').forEach(button=>button.classList.toggle('active',Number(button.dataset.step)===step));if(step===2)renderVariables();if(step===3)renderProcessing();if(step===4){const out=buildOutput();$("#summary").innerHTML=`加工後は <strong>${out.rows.length}</strong> 行 × <strong>${out.headers.length}</strong> 列です。欠測値は「.」です。`;}updatePreview();save(false);}
-document.addEventListener("DOMContentLoaded",()=>{$("#answerFile").onchange=e=>e.target.files[0]&&loadAnswers(e.target.files[0]);$("#pdfFile").onchange=e=>e.target.files[0]&&loadPdf(e.target.files[0]);$$('.step-nav button').forEach(button=>button.onclick=()=>{const step=Number(button.dataset.step);if(step===1||headers.length)go(step);});const saved=localStorage.getItem(STORAGE_KEY);if(saved&&confirm("一時保存された作業を再開しますか？")){try{const state=JSON.parse(saved);headers=state.headers||[];rows=state.rows||[];questions=state.questions||[];questions.forEach(q=>{q.groupOutsideAsOther=q.groupOutsideAsOther===true;q.officialOptionCount=Number(q.officialOptionCount)||Math.max(1,(q.options||[]).length);q.groupedOtherLabel=q.groupedOtherLabel||"その他";normaliseOtherCandidates(q);refreshOtherCandidates(q);});form=state.form||{sections:[]};includeId=state.includeId!==false;go(Math.max(2,state.currentStep||2));}catch{localStorage.removeItem(STORAGE_KEY);}}});
+document.addEventListener("DOMContentLoaded",()=>{$("#answerFile").onchange=e=>e.target.files[0]&&loadAnswers(e.target.files[0]);$("#pdfFile").onchange=e=>selectPdfForNext(e.target.files[0]);$$('.step-nav button').forEach(button=>button.onclick=()=>{const step=Number(button.dataset.step);if(step===1||headers.length)go(step);});const saved=localStorage.getItem(STORAGE_KEY);if(saved&&confirm("一時保存された作業を再開しますか？")){try{const state=JSON.parse(saved);headers=state.headers||[];rows=state.rows||[];questions=state.questions||[];questions.forEach(q=>{q.groupOutsideAsOther=q.groupOutsideAsOther===true;q.officialOptionCount=Number(q.officialOptionCount)||Math.max(1,(q.options||[]).length);q.groupedOtherLabel=q.groupedOtherLabel||"その他";normaliseOtherCandidates(q);refreshOtherCandidates(q);});form=state.form||{sections:[]};includeId=state.includeId!==false;go(Math.max(2,state.currentStep||2));}catch{localStorage.removeItem(STORAGE_KEY);}}});

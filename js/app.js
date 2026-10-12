@@ -1,12 +1,10 @@
-import * as pdfjsLib from "../vendor/pdf.mjs";
-pdfjsLib.GlobalWorkerOptions.workerSrc = "../vendor/pdf.worker.mjs";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const STORAGE_KEY = "survey-coding-final-work-final17-final-flow";
 const TYPES = { single: "単一選択（SA）", multi: "複数選択（MA）", text: "自由回答", numeric: "数値", timestamp: "日時" };
-let headers=[], rows=[], questions=[], form={sections:[]}, currentStep=1, previewOpen=false, includeId=true, pendingPdfFile=null;
+let headers=[], rows=[], questions=[], currentStep=1, previewOpen=false, includeId=true;
 
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const stripAnswerNumber = value => String(value ?? "").replace(/^\s*\d+\s*[.．]\s*/, "").trim();
@@ -129,66 +127,8 @@ async function loadAnswers(file) {
     if (matrix.length<2) throw new Error("見出し行と回答行が必要です。");
     headers=matrix[0].map((v,i)=>String(v||`列${i+1}`));
     rows=matrix.slice(1).filter(row=>row.some(v=>v!==""));
-    makeQuestions(); syncForm(); renumber(); go(1); const st=$("#pdfStatus");if(st)st.innerHTML=`<div class="notice">回答データ読込完了。質問票PDFを選択して「次へ」を押してください。</div>`;
+    makeQuestions(); renumber(); go(2);
   } catch(error) { alert(`回答データを読み込めませんでした。\n${error.message}`); }
-}
-
-function groupPdfLines(items,page) {
-  const groups=[];
-  for (const item of items) {
-    const text=String(item.str||"").trim(); if(!text) continue;
-    const x=item.transform?.[4]||0, y=item.transform?.[5]||0;
-    let group=groups.find(g=>Math.abs(g.y-y)<=3);
-    if(!group){group={y,parts:[]};groups.push(group);} group.parts.push({x,text});
-  }
-  return groups.sort((a,b)=>b.y-a.y).map(g=>({page,text:g.parts.sort((a,b)=>a.x-b.x).map(p=>p.text).join(" ")}));
-}
-function inferPdfType(text) {
-  if (/当てはまるものをすべて|複数回答|複数選択/.test(text)) return "multi";
-  if (/1\s*つだけマーク|1\s*行につき\s*1\s*つだけ/.test(text)) return "single";
-  return "unknown";
-}
-function extractPdfOptions(text) {
-  const result=[], regex=/(?:^|\s)(\d+)\s*[\.．]\s*([^\d]+?)(?=\s+\d+\s*[\.．]|$)/g; let match;
-  while((match=regex.exec(text))){const label=match[2].trim();if(label&&!/マーク|選択してください/.test(label))result.push({number:Number(match[1]),label,isOther:/^その他/.test(label)});}
-  return result;
-}
-function parseForm(lines) {
-  const sections=[]; let current=null;
-  for(const {page,text} of lines){
-    const clean=text.replace(/\s+/g," ").trim();
-    const question=clean.match(/^[-–—]?\s*(\d+)\s*[。.．]\s*(.*)$/);
-    if(question){current={number:Number(question[1]),page,raw:question[2],type:inferPdfType(question[2]),options:extractPdfOptions(question[2]),hasOther:/その他\s*[:：]?/.test(question[2])};sections.push(current);continue;}
-    if(!current)continue; current.raw+=` ${clean}`; const type=inferPdfType(clean); if(type!=="unknown")current.type=type;
-    if(/その他\s*[:：]?/.test(clean))current.hasOther=true;
-    for(const option of extractPdfOptions(clean)) if(!current.options.some(o=>o.number===option.number))current.options.push(option);
-  }
-  for(const section of sections){section.options=section.options.filter((o,i,a)=>a.findIndex(x=>normalize(x.label)===normalize(o.label))===i);if(section.hasOther&&!section.options.some(o=>o.isOther))section.options.push({number:(section.options.at(-1)?.number||0)+1,label:"その他",isOther:true});}
-  return sections;
-}
-function similarity(a,b){a=normalize(a);b=normalize(b);if(!a||!b)return 0;if(a.includes(b)||b.includes(a))return 1;const chars=[...new Set(a.length<=b.length?a:b)],longer=a.length>b.length?a:b;return chars.filter(c=>longer.includes(c)).length/Math.max(1,chars.length);}
-function syncForm(){
-  if(!form.sections.length||!questions.length)return;
-  questions.filter(q=>q.responseType!=="timestamp").forEach((question,index)=>{
-    const ranked=form.sections.map(section=>({section,score:similarity(question.header,section.raw)})).sort((a,b)=>b.score-a.score);
-    const match=ranked[0]?.score>=.45?ranked[0].section:form.sections[index]; if(!match)return;
-    question.pdfNumber=match.number; question.hasOther=match.hasOther;
-    if(match.type==="multi"){question.responseType="multi";question.method="multi";}
-    if(match.options.length){
-      const observed=observedOptions(question);
-      question.options=match.options.map((option,index)=>({label:stripAnswerNumber(option.label),code:index+1,isOther:option.isOther,pdfDisplayNumber:option.number}));question.officialOptionCount=question.options.length;question.groupOutsideAsOther=false;
-      refreshOtherCandidates(question);
-    }
-  });
-}
-async function loadPdf(file){
-  try{
-    if(!file) return; if(file.size>MAX_FILE_SIZE)throw new Error("20MBを超えるPDFは読み込めません。");
-    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,disableFontFace:true}).promise;
-    const lines=[]; for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){const page=await pdf.getPage(pageNumber),content=await page.getTextContent();lines.push(...groupPdfLines(content.items,pageNumber));}
-    form={sections:parseForm(lines)};const optionCount=form.sections.reduce((n,x)=>n+x.options.length,0);$("#pdfStatus").innerHTML=`<div class="notice"><strong>PDF読込完了</strong><br>${escapeHtml(file.name)}：${form.sections.length}問、回答選択肢${optionCount}件を検出。PDF掲載順を既定順として記憶しました。</div>`;
-    syncForm(); if(questions.length)renderVariables(); save(false);
-  }catch(error){alert(`PDFを解析できませんでした。\n${error.message}`);}
 }
 
 function renumber(){let number=1;questions.forEach(q=>q.variableName=q.include?`V${number++}`:"");}
@@ -196,7 +136,7 @@ function renderVariables(){
   if(!questions.length)return;
   const idToggle=$("#includeId");
   if(idToggle) idToggle.checked=includeId;
-  $("#varRows").innerHTML=questions.map((q,i)=>`<tr><td><input type="checkbox" ${q.include?"checked":""} onchange="setInclude(${i},this.checked)"></td><td>${escapeHtml(q.header)}${q.pdfNumber?`<div class="help">PDF設問 ${q.pdfNumber} と同期</div>`:""}</td><td><input value="${escapeHtml(q.variableName)}" ${q.include?"":"disabled"} onchange="setName(${i},this.value)"></td><td><select ${q.include?"":"disabled"} onchange="setType(${i},this.value)">${Object.entries(TYPES).map(([value,label])=>`<option value="${value}" ${q.responseType===value?"selected":""}>${label}</option>`).join("")}</select></td></tr>`).join("");
+  $("#varRows").innerHTML=questions.map((q,i)=>`<tr><td><input type="checkbox" ${q.include?"checked":""} onchange="setInclude(${i},this.checked)"></td><td>${escapeHtml(q.header)}</td><td><input value="${escapeHtml(q.variableName)}" ${q.include?"":"disabled"} onchange="setName(${i},this.value)"></td><td><select ${q.include?"":"disabled"} onchange="setType(${i},this.value)">${Object.entries(TYPES).map(([value,label])=>`<option value="${value}" ${q.responseType===value?"selected":""}>${label}</option>`).join("")}</select></td></tr>`).join("");
   updateMetrics(); updatePreview();
 }
 function updateMetrics(){const out=buildOutput();const el=$("#metrics");if(el)el.innerHTML=`<div class="metric"><strong>${rows.length}</strong>回答</div><div class="metric"><strong>${headers.length}</strong>元の列</div><div class="metric"><strong>${questions.filter(q=>q.include).length}</strong>使用設問</div><div class="metric"><strong>${out.headers.length}</strong>加工後列</div>`;}
@@ -351,17 +291,22 @@ function mapRows(q){
 }
 window.downloadMap=i=>exportWorkbook([[questions[i].variableName,mapRows(questions[i])]],`${questions[i].variableName}_回答選択肢.xlsx`);
 window.downloadAllMaps=()=>exportWorkbook(questions.filter(q=>q.include).map(q=>[q.variableName,mapRows(q)]),"全設問_回答選択肢.xlsx");
-window.importMap=async(i,file)=>{if(!file)return;try{const data=(await readSpreadsheet(file))[0].slice(1).filter(r=>r[1]!=="").sort((a,b)=>Number(a[0])-Number(b[0]));questions[i].options=data.map((r,j)=>({code:Number(r[0])||j+1,label:String(r[1]),isOther:isOtherLabel(r[1])}));questions[i].hasOther=questions[i].options.some(o=>o.isOther);refreshOtherCandidates(questions[i]);renderProcessing();save(false);}catch(e){alert(e.message);}};
-window.importAllMaps=async file=>{if(!file)return;try{const sheets=await readSpreadsheet(file);questions.filter(q=>q.include).forEach((q,i)=>{const data=(sheets[i]||[]).slice(1).filter(r=>r[1]!=="");if(data.length){q.options=data.sort((a,b)=>Number(a[0])-Number(b[0])).map((r,j)=>({code:Number(r[0])||j+1,label:String(r[1]),isOther:isOtherLabel(r[1])}));q.hasOther=q.options.some(o=>o.isOther);refreshOtherCandidates(q);}});renderProcessing();save(false);}catch(e){alert(e.message);}};
+window.importMap=async(i,file)=>{if(!file)return;try{const data=(await readSpreadsheet(file))[0].slice(1).filter(r=>r[1]!=="").sort((a,b)=>Number(a[0])-Number(b[0]));questions[i].options=data.map((r,j)=>({code:(String(r[0]??"").trim()===""?j+1:String(r[0]).trim()),label:String(r[1]),isOther:isOtherLabel(r[1])}));questions[i].hasOther=questions[i].options.some(o=>o.isOther);refreshOtherCandidates(questions[i]);renderProcessing();save(false);}catch(e){alert(e.message);}};
+window.importAllMaps=async file=>{if(!file)return;try{const sheets=await readSpreadsheet(file);questions.filter(q=>q.include).forEach((q,i)=>{const data=(sheets[i]||[]).slice(1).filter(r=>r[1]!=="");if(data.length){q.options=data.sort((a,b)=>Number(a[0])-Number(b[0])).map((r,j)=>({code:(String(r[0]??"").trim()===""?j+1:String(r[0]).trim()),label:String(r[1]),isOther:isOtherLabel(r[1])}));q.hasOther=q.options.some(o=>o.isOther);refreshOtherCandidates(q);}});renderProcessing();save(false);}catch(e){alert(e.message);}};
 function download(blob,name){const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}
 function processedMapRows(){const t=[["変数名","元の質問文","加工方法","出力列・コード","加工後の回答選択肢","元の自由回答","振り分け処理"]];if(includeId)t.push(["V0","ID番号","連番付与","V0","1から始まる連番","",""]);questions.filter(q=>q.include).forEach(q=>{if(q.method==="none"){t.push([q.variableName,q.header,"無加工",q.variableName,"元の値をそのまま出力","","無加工"]);return;}effectiveOptions(q).forEach(o=>t.push([q.variableName,q.header,q.method==="multi"?"複数選択を1/0化":"回答値をコード化",q.method==="multi"?`${q.variableName}-${o.code}`:o.code,o.label,"","選択肢"]));(q.otherCandidates||[]).forEach(c=>{const o=c.action==="map"?effectiveOptions(q).find(x=>String(x.code)===String(c.targetCode)):null;t.push([q.variableName,q.header,"自由回答の振り分け",o?.code||".",o?.label||"欠測値",c.value,c.action==="map"?"既存選択肢へ再分類":c.action==="missing"?"欠測値":"その他として保持"]);});});return t;}
 window.downloadProcessedMap=()=>exportWorkbook([["加工結果対応表",processedMapRows()]],"加工結果_対応表.xlsx");
 window.exportExcel=()=>{const out=buildOutput();return exportWorkbook([["加工済みデータ",[out.headers,...out.rows]],["加工結果対応表",processedMapRows()]],"加工済みアンケートデータ.xlsx");};
 window.exportCSV=()=>{const out=buildOutput(),csv=[out.headers,...out.rows].map(row=>row.map(v=>`"${String(spreadsheetSafe(v)??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");download(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),"加工済みデータ_UTF8.csv");};
 
-window.selectPdfForNext=file=>{pendingPdfFile=file||null;$("#pdfStatus").innerHTML=file?`<div class="notice">${escapeHtml(file.name)}を選択済み。「次へ」でPDFを解析します。</div>`:"";};
-window.proceedFromFiles=async()=>{if(!headers.length){alert("先に回答Excel・CSVを読み込んでください。");return;}const b=$("#fileNextButton");try{if(b){b.disabled=true;b.textContent="PDFを読み込み中…";}if(pendingPdfFile)await loadPdf(pendingPdfFile);else $("#pdfStatus").innerHTML=`<div class="notice">PDFなしで進みます。</div>`;syncForm();renumber();go(2);}catch(e){alert(e.message);}finally{if(b){b.disabled=false;b.textContent="次へ（PDFを読み込んで変数名設定へ）";}}};
-function save(show){if(!headers.length)return;try{localStorage.setItem(STORAGE_KEY,JSON.stringify({headers,rows,questions,form,currentStep,includeId}));if(show)alert("一時保存しました。");}catch(e){alert("一時保存できませんでした。データ量が大きすぎる可能性があります。");}}
+function save(show){if(!headers.length)return;try{localStorage.setItem(STORAGE_KEY,JSON.stringify({headers,rows,questions,currentStep,includeId}));if(show)alert("一時保存しました。");}catch(e){alert("一時保存できませんでした。データ量が大きすぎる可能性があります。");}}
 window.saveNow=()=>save(true); window.clearSave=()=>{localStorage.removeItem(STORAGE_KEY);alert("一時保存を削除しました。");};
-window.go=go;function go(step){currentStep=step;$$('.panel').forEach(panel=>panel.classList.toggle('active',Number(panel.dataset.step)===step));$$('.step-nav button').forEach(button=>button.classList.toggle('active',Number(button.dataset.step)===step));if(step===2)renderVariables();if(step===3)renderProcessing();if(step===4){const out=buildOutput();$("#summary").innerHTML=`加工後は <strong>${out.rows.length}</strong> 行 × <strong>${out.headers.length}</strong> 列です。欠測値は「.」です。`;}updatePreview();save(false);}
-document.addEventListener("DOMContentLoaded",()=>{$("#answerFile").onchange=e=>e.target.files[0]&&loadAnswers(e.target.files[0]);$("#pdfFile").onchange=e=>selectPdfForNext(e.target.files[0]);$$('.step-nav button').forEach(button=>button.onclick=()=>{const step=Number(button.dataset.step);if(step===1||headers.length)go(step);});const saved=localStorage.getItem(STORAGE_KEY);if(saved&&confirm("一時保存された作業を再開しますか？")){try{const state=JSON.parse(saved);headers=state.headers||[];rows=state.rows||[];questions=state.questions||[];questions.forEach(q=>{q.groupOutsideAsOther=q.groupOutsideAsOther===true;q.officialOptionCount=Number(q.officialOptionCount)||Math.max(1,(q.options||[]).length);q.groupedOtherLabel=q.groupedOtherLabel||"その他";normaliseOtherCandidates(q);refreshOtherCandidates(q);});form=state.form||{sections:[]};includeId=state.includeId!==false;go(Math.max(2,state.currentStep||2));}catch{localStorage.removeItem(STORAGE_KEY);}}});
+window.go=go;function go(step){currentStep=step;$$('.panel').forEach(panel=>panel.classList.toggle('active',Number(panel.dataset.step)===step));$$('.step-nav button').forEach(button=>button.classList.toggle('active',Number(button.dataset.step)===step));if(step===2)renderVariables();if(step===3)renderProcessing();if(step===4){reloadAll();}updatePreview();save(false);}
+
+function mappedAnswersHtml(q,o){const a=(q.otherCandidates||[]).filter(c=>(c.action==="map"&&String(c.targetCode)===String(o.code))||(o.isOther&&c.action==="other"));return a.length?`<div class="mapped-answers"><small>編入された自由回答</small>${a.map(c=>`<span>${escapeHtml(otherFreeText(c.value)||c.value)} → ${escapeHtml(o.label)}へ編入</span>`).join("")}</div>`:"";}
+function rebuildQuestion(q){refreshOtherCandidates(q);if(q.method==="multi")q.options.forEach((o,k)=>o.code=k+1);q.completed=true;}
+window.reloadQuestion=i=>{rebuildQuestion(questions[i]);renderProcessing();updatePreview();save(false);};
+window.completeQuestion=i=>{const q=questions[i];if(q.completed){q.completed=false;renderProcessing();return;}rebuildQuestion(q);renderProcessing();updatePreview();save(false);};
+window.reloadAll=()=>{questions.filter(q=>q.include).forEach(rebuildQuestion);updatePreview();const out=buildOutput();const x=$("#summary");if(x)x.innerHTML=`加工後は <strong>${out.rows.length}</strong> 行 × <strong>${out.headers.length}</strong> 列です。欠測値は「.」です。`;save(false);};
+function processingDetails(q){refreshOtherCandidates(q);return `${q.method==="multi"?multiGroupingSettings(q):""}<div class="notice">${q.method==="multi"?"選択肢ごとに1/0列を作成します。V枝番号は現在の表示順で再生成します。":"抽出した番号は手動修正できます。"}</div>${q.hasOther||q.otherCandidates.length||groupedOtherEnabled(q)?otherSettings(q):""}<div class="toolbar"><button class="button" onclick="downloadMap(${q.columnIndex})">この設問の対応表を保存</button><button class="icon-button reload-map" onclick="reloadQuestion(${q.columnIndex})" title="最新の編集内容を再読み込み">↻</button><button class="button complete-button" onclick="completeQuestion(${q.columnIndex})">${q.completed?"再編集":"完了"}</button><label class="button">対応表を読込<input hidden type="file" accept=".xlsx,.csv" onchange="importMap(${q.columnIndex},this.files[0])"></label></div><div class="option-list" data-question="${q.columnIndex}">${effectiveOptions(q).map((o,j)=>`<div class="option-card"><span class="drag-handle">☰</span><span>${escapeHtml(o.label)}${o.isOther?'<span class="badge">その他</span>':""}</span>${q.method==="multi"?`<strong>${escapeHtml(q.variableName)}-${j+1}</strong>`:`<input value="${escapeHtml(o.code)}" onchange="setCode(${q.columnIndex},${j},this.value)">`}${mappedAnswersHtml(q,o)}</div>`).join("")}</div>`;}
+document.addEventListener("DOMContentLoaded",()=>{$("#answerFile").onchange=e=>e.target.files[0]&&loadAnswers(e.target.files[0]);$$('.step-nav button').forEach(button=>button.onclick=()=>{const step=Number(button.dataset.step);if(step===1||headers.length)go(step);});const saved=localStorage.getItem(STORAGE_KEY);if(saved&&confirm("一時保存された作業を再開しますか？")){try{const state=JSON.parse(saved);headers=state.headers||[];rows=state.rows||[];questions=state.questions||[];questions.forEach(q=>{q.groupOutsideAsOther=q.groupOutsideAsOther===true;q.officialOptionCount=Number(q.officialOptionCount)||Math.max(1,(q.options||[]).length);q.groupedOtherLabel=q.groupedOtherLabel||"その他";normaliseOtherCandidates(q);refreshOtherCandidates(q);});includeId=state.includeId!==false;go(Math.max(2,state.currentStep||2));}catch{localStorage.removeItem(STORAGE_KEY);}}});

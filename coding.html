@@ -134,29 +134,8 @@
         <input accept=".xlsx,.csv" hidden="" id="answerFile" type="file"/>
        </label>
       </div>
-      <div class="source-grid">
-       <article class="card">
-        <h3>
-         質問票PDF（任意）
-        </h3>
-        <label class="button">
-         PDFを選択
-         <input accept=".pdf" hidden="" id="pdfFile" type="file"/>
-        </label>
-        <p id="pdfStatus">
-        </p>
-       </article>
-       <article class="card">
-        <h3>
-         PDFがない場合
-        </h3>
-        <p>
-         設定は後から手動で修正できます。
-        </p>
-       </article>
-      </div>
-     <div class="toolbar step-actions"><button class="button primary" id="fileNextButton" onclick="proceedFromFiles()">次へ（PDFを読み込んで変数名設定へ）</button></div>
-     </div>
+      <p class="help">ExcelまたはCSVを読み込むと、自動的に変数名設定へ進みます。</p>
+</div>
      <div class="panel" data-step="2">
       <h2>
        変数名設定
@@ -234,6 +213,7 @@
         Excel保存
        </button>
 <button class="button" onclick="downloadProcessedMap()">加工結果の対応表だけをDL</button>
+       <button class="icon-button reload-map" onclick="reloadAll()" title="最新の回答値加工設定を再読み込み" aria-label="最新の回答値加工設定を再読み込み">↻</button>
        <button class="button" onclick="exportCSV()">
         CSV保存
        </button>

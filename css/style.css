@@ -379,5 +379,5 @@ td{background:var(--s);border-color:var(--b)}
 .option-card.grouped-option{opacity:.78;background:var(--subtle)}
 @media(max-width:700px){.multi-group-controls{grid-template-columns:1fr}.group-result{grid-column:auto}.option-card{grid-template-columns:28px minmax(0,1fr)}.option-card>strong{grid-column:2}}
 
-/* 回答値加工の確定・再読み込み */
-.reload-map{display:inline-grid;place-items:center;width:42px;height:42px;padding:0;font-size:1.35rem}.complete-button{border-color:var(--p)}.complete-mark{color:var(--p)}.mapped-answers{grid-column:2/-1;display:grid;gap:4px;padding:9px 11px;background:var(--ps);border-left:3px solid var(--p);font-size:.86rem}.mapped-answers span{overflow-wrap:anywhere}
+/* 回答値加工の確定・再読み込み・編入表示 */
+.reload-map{display:inline-grid;place-items:center;width:42px;height:42px;padding:0;font-size:1.35rem;line-height:1}.complete-button{border-color:var(--p)}.complete-mark{display:inline-block;margin-left:8px;color:var(--p);font-size:.82rem}.mapped-answers{grid-column:2/-1;display:grid;gap:4px;margin-top:6px;padding:9px 11px;background:var(--ps);border-left:3px solid var(--p);font-size:.86rem}.mapped-answers small{font-weight:800}.mapped-answers span{overflow-wrap:anywhere}@media(max-width:600px){.mapped-answers{grid-column:1/-1}}

@@ -52,6 +52,10 @@ async function loadData(file) {
   }
   $("#dataStatus").innerHTML = `<div class="analysis-status success">${escapeHtml(file.name)}：${dataRows.length}回答、${dataHeaders.length}列を読み込みました。</div>`;
 }
+function numericColumns(){return dataHeaders.map((header,index)=>({header,index,values:dataRows.map(r=>r[index]).filter(v=>!isMissing(v))})).filter(c=>c.header!=="V0"&&c.values.length&&c.values.every(v=>Number.isFinite(Number(v))));}
+function updateScatterSelectors(){const cols=numericColumns(),panel=$("#scatterPanel");panel.hidden=cols.length<2;const options=cols.map(c=>`<option value="${c.index}">${escapeHtml(c.header)}</option>`).join("");$("#scatterX").innerHTML=options;$("#scatterY").innerHTML=options;if(cols.length>1)$("#scatterY").selectedIndex=1;}
+function drawScatter(){const xi=Number($("#scatterX").value),yi=Number($("#scatterY").value);const points=dataRows.map(r=>({x:Number(r[xi]),y:Number(r[yi]),rx:r[xi],ry:r[yi]})).filter(p=>!isMissing(p.rx)&&!isMissing(p.ry)&&Number.isFinite(p.x)&&Number.isFinite(p.y));if(!points.length)throw new Error("分散図に使える有効な組み合わせがありません。");const canvas=$("#scatterCanvas"),ctx=canvas.getContext("2d"),L=80,T=35,W=885,H=515,xs=points.map(p=>p.x),ys=points.map(p=>p.y);let x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);if(x0===x1){x0--;x1++;}if(y0===y1){y0--;y1++;}ctx.fillStyle="#fff";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.strokeStyle="#ddd";ctx.fillStyle="#555";ctx.font="14px sans-serif";for(let i=0;i<=5;i++){const x=L+W*i/5,y=T+H-H*i/5;ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+H);ctx.stroke();ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(L+W,y);ctx.stroke();ctx.fillText((x0+(x1-x0)*i/5).toFixed(1),x-16,T+H+24);ctx.fillText((y0+(y1-y0)*i/5).toFixed(1),12,y+4);}ctx.fillStyle="#673ab7aa";points.forEach(p=>{const x=L+(p.x-x0)/(x1-x0)*W,y=T+H-(p.y-y0)/(y1-y0)*H;ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();});ctx.fillStyle="#222";ctx.font="700 18px sans-serif";ctx.textAlign="center";ctx.fillText(dataHeaders[xi],L+W/2,600);ctx.save();ctx.translate(22,T+H/2);ctx.rotate(-Math.PI/2);ctx.fillText(dataHeaders[yi],0,0);ctx.restore();ctx.textAlign="left";$("#scatterSummary").textContent=`有効な組み合わせ: ${points.length}件`;$("#downloadScatter").disabled=false;}
+function downloadScatter(){$("#scatterCanvas").toBlob(blob=>download(blob,"分散図.png"));}
 async function loadMapping(file) {
   const sheets = await readWorkbook(file);
   const embedded = sheets.find(item => item.name === "対応表");
@@ -89,7 +93,7 @@ function buildAnalyses() {
     if (isMulti) {
       columns.sort((a,b) => a.branch - b.branch);
       items = columns.map(column => {
-        const choice = map.choices.find(item => Number(item.code) === column.branch) || map.choices[column.branch - 1];
+        const choice = map.choices.find(item => Number(item.code) === column.branch);
         return {code:column.branch,label:choice?.label || column.header,count:dataRows.filter(row => Number(row[column.index]) === 1).length};
       });
       for (const row of dataRows) {
@@ -162,4 +166,4 @@ window.downloadAllExcel=async()=>download(await excelBlob(analyses),"簡易分�
 window.downloadAllCSVs=async()=>{const zip=new JSZip();analyses.forEach(item=>zip.file(`${item.variable}_簡易分析.csv`,`\ufeff${csvText(item)}`));download(await zip.generateAsync({type:"blob"}),"簡易分析_CSV一式.zip");};
 window.downloadAllCharts=async()=>{const zip=new JSZip();for(let i=0;i<analyses.length;i++){const blob=await new Promise(resolve=>$("#chart"+i).toBlob(resolve));zip.file(`${analyses[i].variable}_グラフ.png`,blob);}download(await zip.generateAsync({type:"blob"}),"簡易分析_グラフ一式.zip");};
 window.downloadAllReports=async()=>{const zip=new JSZip();for(let i=0;i<analyses.length;i++){const blob=await new Promise(resolve=>reportCanvas(i).toBlob(resolve));zip.file(`${analyses[i].variable}_表とグラフ.png`,blob);}download(await zip.generateAsync({type:"blob"}),"簡易分析_表とグラフ一式.zip");};
-document.addEventListener("DOMContentLoaded",()=>{$("#analysisDataFile").onchange=async event=>{try{await loadData(event.target.files[0]);}catch(error){alert(error.message);}};$("#analysisMappingFile").onchange=async event=>{try{await loadMapping(event.target.files[0]);}catch(error){alert(error.message);}};$("#runAnalysis").onclick=()=>{try{render();}catch(error){alert(error.message);}};});
+document.addEventListener("DOMContentLoaded",()=>{$("#analysisDataFile").onchange=async event=>{try{await loadData(event.target.files[0]);updateScatterSelectors();}catch(error){alert(error.message);}};$("#analysisMappingFile").onchange=async event=>{try{await loadMapping(event.target.files[0]);}catch(error){alert(error.message);}};$("#runAnalysis").onclick=()=>{try{render();updateScatterSelectors();}catch(error){alert(error.message);}};$("#drawScatter").onclick=()=>{try{drawScatter();}catch(error){alert(error.message);}};$("#downloadScatter").onclick=downloadScatter;});

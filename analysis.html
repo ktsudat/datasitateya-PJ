@@ -156,6 +156,12 @@
      </button>
     </div>
    </section>
+
+   <section class="scatter-panel" id="scatterPanel" hidden>
+    <h2>分散図</h2><p class="help">数値列を2つ選択します。空欄、「.」、非数値は除外します。</p>
+    <div class="scatter-controls"><label>X軸<select id="scatterX"></select></label><label>Y軸<select id="scatterY"></select></label><button class="button primary" id="drawScatter">分散図を作成</button><button class="button" id="downloadScatter" disabled>PNGでDL</button></div>
+    <p id="scatterSummary"></p><canvas id="scatterCanvas" width="1000" height="620"></canvas>
+   </section>
    <section class="analysis-results" id="analysisResults">
    </section>
   </main>

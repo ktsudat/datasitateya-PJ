@@ -10,6 +10,7 @@
   <meta content="数値化したアンケート回答とV番号対応表から、単純集計、表、グラフを作成します。" name="description"/>
   <meta content="アンケート,簡易分析,単純集計,V番号,SA,MA,Excel,CSV,グラフ" name="keywords"/>
   <link href="css/style.css" rel="stylesheet"/>
+  <link href="css/analysis.css?v=20261013-2" rel="stylesheet"/>
   <script src="js/config.js">
   </script>
   <script src="js/site-data.js">
@@ -20,7 +21,7 @@
   </script>
   <script src="vendor/jszip.min.js">
   </script>
-  <script defer="" src="js/analysis.js">
+  <script defer="" src="js/analysis.js?v=20261013-2">
   </script>
   <meta content="index,follow" name="robots"/>
  </head>
@@ -91,7 +92,7 @@
      簡易分析
     </h1>
     <p>
-     数値化された回答データと、V番号・回答選択肢の対応表を使って設問ごとの単純集計を作成します。
+     「加工済みアンケートデータ.xlsx」と「加工済み_設問別対応表.xlsx」を使い、対応表に定義された回答選択肢だけを設問ごとに集計します。
     </p>
    </section>
    <section class="analysis-upload-grid">
@@ -120,7 +121,7 @@
       V番号・選択肢対応表
      </h2>
      <p>
-      「全設問の対応表を保存」で出力したExcelを選択します。
+      コーディング作業の「設問別対応表を保存」で出力した「加工済み_設問別対応表.xlsx」を選択します。
      </p>
      <label class="button primary">
       対応表Excelを選択
@@ -130,6 +131,7 @@
      </div>
     </article>
    </section>
+   <div class="analysis-format-note"><strong>対応ファイル形式</strong><span>データ：1行目がV番号（V1、V8-1など）／対応表：V番号、設問文、加工済の番号、回答選択肢</span><span>MAはV8-1、V8-2…をV8としてまとめ、各枝の「1」の件数を集計します。対応表にない選択肢は追加しません。数値設問は値の分布を棒グラフで表示します。</span></div>
    <div class="analysis-run">
     <button class="button primary" id="runAnalysis">
      簡易分析を実行

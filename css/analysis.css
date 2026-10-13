@@ -69,3 +69,45 @@
 .analysis-chart-host,.analysis-chart-svg{max-width:100%;overflow:visible}.analysis-chart-svg text{overflow:visible}
 .analysis-export-groups section{border-radius:4px;min-width:0}.analysis-v-number{border-radius:4px}.analysis-bar-track,.analysis-bar{border-radius:3px}
 @media(max-width:1120px){.analysis-result-grid{grid-template-columns:1fr}.analysis-results{width:min(100%,calc(100vw - 24px))}}
+
+
+/* 2026-10-14: viewport-safe square layout and custom warning modal */
+.analysis-page,.analysis-page *{box-sizing:border-box}
+.analysis-page *{border-radius:0!important}
+.analysis-page{overflow-x:hidden}
+.analysis-page .analysis-results{width:100%;max-width:100%;margin-inline:0}
+.analysis-page .analysis-result-card{max-width:100%;overflow:hidden}
+.analysis-page .analysis-result-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.analysis-page .analysis-result-grid>div,.analysis-page .analysis-chart-host{min-width:0;max-width:100%}
+.analysis-page .analysis-chart-control{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px 14px;max-width:100%}
+.analysis-page .analysis-chart-control label{min-width:0}
+.analysis-page .analysis-chart-control select{max-width:100%}
+.analysis-page .analysis-chart-svg{width:100%;max-width:100%}
+.analysis-page .analysis-table-wrap{max-width:100%;overflow-x:auto}
+@media(max-width:1180px){.analysis-page .analysis-result-grid{grid-template-columns:1fr}.analysis-page .analysis-chart-control{justify-content:flex-start}}
+@media(max-width:720px){.analysis-page .analysis-result-card{padding:16px}.analysis-page .analysis-result-head{flex-direction:column}.analysis-page .analysis-meta{white-space:normal}.analysis-page .analysis-chart-control{align-items:stretch}.analysis-page .analysis-chart-control label{width:100%;display:grid;grid-template-columns:1fr}.analysis-page .analysis-chart-control select{width:100%}}
+.analysis-modal{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:20px}
+.analysis-modal.is-open{display:flex}
+.analysis-modal-backdrop{position:absolute;inset:0;background:rgba(18,15,23,.58)}
+.analysis-modal-panel{position:relative;width:min(520px,100%);background:#fff;border:1px solid #cfc7dc;box-shadow:0 24px 70px rgba(22,15,35,.28);padding:28px;display:grid;grid-template-columns:48px 1fr;gap:18px}
+.analysis-modal-mark{width:48px;height:48px;display:grid;place-items:center;background:#fff4e5;border:1px solid #d88400;color:#8a4b00;font-size:1.55rem;font-weight:900}
+.analysis-modal-copy h2{margin:0 0 10px;font-size:1.16rem}.analysis-modal-copy p{margin:0;color:#514a57;line-height:1.75}
+.analysis-modal-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:10px;margin-top:8px}
+.analysis-modal-actions .button{min-width:112px}
+body.analysis-modal-open{overflow:hidden}
+
+/* 2026-10-14: keep wide result cards centered on the page axis */
+.analysis-page .analysis-results{
+  position:relative;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(1500px,calc(100vw - 48px));
+  max-width:calc(100vw - 48px);
+  margin-inline:0;
+}
+@media(max-width:720px){
+  .analysis-page .analysis-results{
+    width:calc(100vw - 24px);
+    max-width:calc(100vw - 24px);
+  }
+}

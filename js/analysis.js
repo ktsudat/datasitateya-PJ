@@ -249,17 +249,18 @@
       return `<article class="analysis-result-card" data-result="${i}"><header class="analysis-result-head"><div><span class="analysis-v-number">${esc(r.variable)} / ${r.type}</span><h2 class="analysis-question">${esc(r.question||"設問文なし")}</h2></div><div class="analysis-meta">有効 ${r.valid}件 ／ 欠測 ${r.missing}件${numericMeta}${warnings.length?`<br><span class="analysis-status-warn">${esc(warnings.join("・"))}</span>`:""}</div></header><div class="analysis-chart-control"><label>グラフ<select onchange="changeChartType(${i},this.value)" ${r.type==="NUMERIC"?"disabled":""}><option value="bar" ${r.chartType!=="pie"?"selected":""}>棒グラフ</option><option value="pie" ${r.chartType==="pie"?"selected":""}>円グラフ</option></select></label></div><div class="analysis-result-grid"><div><table class="analysis-table"><thead><tr><th>番号</th><th>${column2}</th><th>件数</th><th>割合</th></tr></thead><tbody>${rows}</tbody></table></div><div class="analysis-chart-host" id="analysisChart${i}">${r.chartType==="pie"&&r.type!=="NUMERIC"?pieChartHtml(r):barChartHtml(r)}</div></div><div class="analysis-export-groups"><section><strong>1. 表単体</strong><div><button class="button" onclick="downloadTablePNG(${i})">PNG</button><button class="button" onclick="downloadResultExcel(${i})">Excel</button><button class="button" onclick="downloadResultCSV(${i})">CSV</button></div></section><section><strong>2. グラフ単体</strong><div><button class="button" onclick="downloadChartPNG(${i})">PNG</button></div></section><section><strong>3. 表＋グラフ</strong><div><button class="button primary" onclick="downloadCombinedPNG(${i})">PNG</button></div></section></div></article>`;
     }).join("");
   }
+  const PASTEL_COLORS=["#8FB3E8","#86D1C5","#F4C08A","#EE9CAA","#B69BDD","#8CC8E2","#A8D58A","#F1D477","#D59ACA","#95D0B1","#F2A47F","#A8B9DC"];
   function barChartHtml(r){
     const max=Math.max(1,...r.items.map(x=>x.count)),colors=["#7C9CE6","#70C1B3","#F2B880","#E88FA2","#A98BD4","#78B7D0","#9BCB76","#E5C36D","#C78FBF","#8EC5A4","#EE9B73","#92A8D1"];
     return `<div class="analysis-bar-list">${r.items.map((x,i)=>{
       const width=x.count>0?Math.max(2,x.count/max*100):0;
-      return `<div class="analysis-bar-row ${x.count>0?"has-value":"is-zero"}"><span class="analysis-bar-label">${esc(x.label)}</span><span class="analysis-bar-track"><span class="analysis-bar" style="width:${width}%;background:${colors[i%colors.length]}"></span></span><span class="analysis-bar-value">${x.count}</span></div>`;
+      return `<div class="analysis-bar-row ${x.count>0?"has-value":"is-zero"}"><span class="analysis-bar-label"><i class="analysis-color-dot" style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}</span><span class="analysis-bar-track"><span class="analysis-bar" style="width:${width}%;background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></span></span><span class="analysis-bar-value">${x.count}</span></div>`;
     }).join("")}</div>`;
   }
   function pieChartHtml(r){
-    const total=r.items.reduce((n,x)=>n+x.count,0)||1, colors=["#673ab7","#8559c7","#9d78d3","#b39ddb","#512da8","#7e57c2","#9575cd","#5e35b1","#8e6bbf","#c5b4e3"];
+    const total=r.items.reduce((n,x)=>n+x.count,0)||1, colors=PASTEL_COLORS;
     let acc=0;const stops=r.items.map((x,i)=>{const from=acc,to=acc+x.count/total*100;acc=to;return `${colors[i%colors.length]} ${from}% ${to}%`;}).join(",");
-    const legend=r.items.map((x,i)=>`<span><i style="background:${colors[i%colors.length]}"></i>${esc(x.label)}：${x.count}</span>`).join("");
+    const legend=r.items.map((x,i)=>`<span><i style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}：${x.count}</span>`).join("");
     return `<div class="analysis-pie-wrap"><div class="analysis-pie" style="background:conic-gradient(${stops})"></div><div class="analysis-pie-legend">${legend}</div></div>`;
   }
   window.changeChartType=(i,type)=>{const host=document.querySelector(`#analysisChart${i}`),r=results[i];r.chartType=type;if(host)host.innerHTML=type==="pie"?pieChartHtml(r):barChartHtml(r);};
@@ -281,7 +282,7 @@
     ws.getCell("A1").font={bold:true};ws.getCell("A2").font={bold:true};ws.getCell("B2").alignment={wrapText:true,vertical:"top"};
     downloadBlob(new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`${r.variable}_単純集計.xlsx`);
   };
-  const PNG_COLORS=["#7C9CE6","#70C1B3","#F2B880","#E88FA2","#A98BD4","#78B7D0","#9BCB76","#E5C36D","#C78FBF","#8EC5A4","#EE9B73","#92A8D1"];
+  const PNG_COLORS=PASTEL_COLORS;
   function setupCanvas(width,height){const canvas=document.createElement("canvas");const scale=Math.max(2,window.devicePixelRatio||1);canvas.width=width*scale;canvas.height=height*scale;canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;const ctx=canvas.getContext("2d");ctx.scale(scale,scale);ctx.fillStyle="#ffffff";ctx.fillRect(0,0,width,height);ctx.textBaseline="middle";return{canvas,ctx,width,height};}
   function wrappedLines(ctx,value,maxWidth){const chars=[...text(value)],lines=[];let line="";for(const ch of chars){if(ctx.measureText(line+ch).width>maxWidth&&line){lines.push(line);line=ch;}else line+=ch;}if(line)lines.push(line);return lines.length?lines:[""];}
   function drawHeader(ctx,r,width){ctx.fillStyle="#673ab7";ctx.font="700 18px 'Noto Sans JP',sans-serif";ctx.fillText(`${r.variable} / ${r.type}`,28,28);ctx.fillStyle="#202124";ctx.font="700 17px 'Noto Sans JP',sans-serif";const lines=wrappedLines(ctx,r.question||"設問文なし",width-56);lines.slice(0,3).forEach((line,i)=>ctx.fillText(line,28,62+i*24));return 62+Math.min(lines.length,3)*24+18;}

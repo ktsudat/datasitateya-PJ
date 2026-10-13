@@ -49,3 +49,8 @@
 .analysis-pie-data-label{position:absolute;z-index:2;transform:translate(-50%,-50%);padding:2px 5px;border-radius:5px;background:rgba(255,255,255,.86);box-shadow:0 1px 3px rgba(0,0,0,.12);white-space:nowrap;font-size:.74rem;font-weight:850;color:#202124;pointer-events:none}
 .analysis-pie-data-label.is-small{font-size:.68rem;padding:1px 3px}
 @media(max-width:700px){.analysis-bar-track{padding-right:62px}.analysis-bar{max-width:calc(100% - 62px)}.analysis-bar-data-label{left:calc(100% - 57px);min-width:52px}.analysis-pie-box{width:min(250px,88vw)}}
+
+/* Reliable inline-SVG chart labels */
+.analysis-chart-host{overflow:visible!important;min-width:0}
+.analysis-chart-svg{display:block;width:100%;height:auto;min-height:260px;overflow:visible;font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif}
+@media(max-width:700px){.analysis-chart-svg{min-width:620px}.analysis-chart-host{overflow-x:auto!important;padding-bottom:8px}}

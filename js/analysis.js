@@ -182,7 +182,7 @@
     const mean=values.reduce((a,b)=>a+b,0)/valid;
     const sorted=[...values].sort((a,b)=>a-b), median=sorted.length%2?sorted[(sorted.length-1)/2]:(sorted[sorted.length/2-1]+sorted[sorted.length/2])/2;
     items.forEach(x=>x.percent=valid?x.count/valid*100:0);
-    return {variable:meta.variable,question:meta.question,type:"NUMERIC",items,valid,missing,invalid:0,unexpected:0,mean,median,min:sorted[0],max:sorted.at(-1),values:[...values],numericMode:"bins",binCount:10,rangeMin:sorted[0],rangeMax:sorted.at(-1),labelMode:"none"};
+    return {variable:meta.variable,question:meta.question,type:"NUMERIC",items,valid,missing,invalid:0,unexpected:0,mean,median,min:sorted[0],max:sorted.at(-1),values:[...values],numericMode:"bins",binCount:10,rangeMin:sorted[0],rangeMax:sorted.at(-1),labelMode:"percent"};
   }
 
   function analyzeOne(map){
@@ -231,7 +231,7 @@
       .filter(meta=>meta.variable!=="V0" && !mappedVariables.has(meta.variable) && dataModel.index.has(meta.variable))
       .map(analyzeNumeric).filter(Boolean);
     results=[...mapped,...numeric].sort(sortV);
-    results.forEach(r=>{r.chartType=chartTypes[r.variable]||r.chartType||"bar";r.labelMode=r.labelMode||"none";});
+    results.forEach(r=>{r.chartType=chartTypes[r.variable]||r.chartType||"bar";r.labelMode=(r.labelMode&&r.labelMode!=="none")?r.labelMode:"percent";});
     renderResults();
     const invalid=results.reduce((n,r)=>n+r.invalid,0), skipped=[...mappingModel.maps.keys()].filter(v=>!results.some(r=>r.variable===v)).length;
     summary.textContent=`${results.length}設問を集計しました。対応表に一致しない値は${invalid}件、データ列がない対応表は${skipped}件です。`;
@@ -280,30 +280,18 @@
     }).join("");
   }
   const PASTEL_COLORS=["#8FB3E8","#86D1C5","#F4C08A","#EE9CAA","#B69BDD","#8CC8E2","#A8D58A","#F1D477","#D59ACA","#95D0B1","#F2A47F","#A8B9DC"];
+  function polarPoint(cx,cy,radius,angle){const rad=(angle-90)*Math.PI/180;return {x:cx+radius*Math.cos(rad),y:cy+radius*Math.sin(rad)};}
+  function pieSlicePath(cx,cy,radius,start,end){const a=polarPoint(cx,cy,radius,end),b=polarPoint(cx,cy,radius,start),large=end-start>180?1:0;return `M ${cx} ${cy} L ${a.x} ${a.y} A ${radius} ${radius} 0 ${large} 0 ${b.x} ${b.y} Z`;}
   function barChartHtml(r){
-    const max=Math.max(1,...r.items.map(x=>x.count));
-    return `<div class="analysis-bar-list">${r.items.map((x,i)=>{
-      const width=x.count>0?Math.max(2,x.count/max*100):0;
-      const label=valueLabel(r,x);
-      return `<div class="analysis-bar-row ${x.count>0?"has-value":"is-zero"}"><span class="analysis-bar-label"><i class="analysis-color-dot" style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}</span><span class="analysis-bar-track"><span class="analysis-bar" style="width:${width}%;background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></span>${label?`<b class="analysis-bar-data-label">${esc(label)}</b>`:""}</span><span class="analysis-bar-value">${x.count}</span></div>`;
-    }).join("")}</div>`;
+    const W=720,labelW=230,plotX=245,plotW=390,rightPad=82,rowH=42,H=Math.max(120,r.items.length*rowH+24),max=Math.max(1,...r.items.map(x=>x.count));
+    const rows=r.items.map((x,i)=>{const y=14+i*rowH,bw=x.count/max*plotW,label=valueLabel(r,x),inside=bw>=72,tx=inside?plotX+bw-8:Math.min(plotX+bw+8,W-rightPad),anchor=inside?"end":"start",fill=inside?"#172033":"#202124";return `<text x="8" y="${y+20}" font-size="13" fill="#202124">${esc(text(x.label).slice(0,28))}</text><rect x="${plotX}" y="${y}" width="${plotW+rightPad}" height="26" rx="6" fill="#eef1f5"/><rect x="${plotX}" y="${y}" width="${Math.max(0,bw)}" height="26" rx="6" fill="${PASTEL_COLORS[i%PASTEL_COLORS.length]}"/>${label?`<text x="${tx}" y="${y+18}" text-anchor="${anchor}" font-size="13" font-weight="800" fill="${fill}">${esc(label)}</text>`:""}`;}).join("");
+    return `<svg class="analysis-chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="棒グラフ">${rows}</svg>`;
   }
   function pieChartHtml(r){
-    const total=r.items.reduce((n,x)=>n+x.count,0)||1, colors=PASTEL_COLORS;
-    let acc=0;
-    const stops=r.items.map((x,i)=>{const from=acc,to=acc+x.count/total*100;acc=to;return `${colors[i%colors.length]} ${from}% ${to}%`;}).join(",");
-    let angle=-90;
-    const labels=r.items.map((x,i)=>{
-      const sweep=x.count/total*360,mid=angle+sweep/2;angle+=sweep;
-      const label=valueLabel(r,x);
-      if(!label||x.count<=0)return "";
-      const rad=mid*Math.PI/180;
-      const radius=sweep<18?46:34;
-      const left=50+Math.cos(rad)*radius,top=50+Math.sin(rad)*radius;
-      return `<span class="analysis-pie-data-label ${sweep<18?"is-small":""}" style="left:${left}%;top:${top}%">${esc(label)}</span>`;
-    }).join("");
-    const legend=r.items.map((x,i)=>`<span><i style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}：${x.count}${r.labelMode==="percent"?`（${x.percent.toFixed(1)}%）`:""}</span>`).join("");
-    return `<div class="analysis-pie-wrap"><div class="analysis-pie-box"><div class="analysis-pie" style="background:conic-gradient(${stops})"></div>${labels}</div><div class="analysis-pie-legend">${legend}</div></div>`;
+    const W=720,H=360,cx=185,cy=180,radius=145,total=r.items.reduce((n,x)=>n+x.count,0)||1;let angle=0;
+    const slices=r.items.map((x,i)=>{const sweep=x.count/total*360,start=angle,end=angle+sweep,mid=start+sweep/2;angle=end;const label=valueLabel(r,x),pos=polarPoint(cx,cy,sweep<20?radius*.78:radius*.62,mid),font=sweep<16?11:13;return `<path d="${pieSlicePath(cx,cy,radius,start,end)}" fill="${PASTEL_COLORS[i%PASTEL_COLORS.length]}" stroke="#fff" stroke-width="1"/>${label&&x.count>0?`<text x="${pos.x}" y="${pos.y}" text-anchor="middle" dominant-baseline="middle" font-size="${font}" font-weight="850" fill="#202124" stroke="rgba(255,255,255,.94)" stroke-width="4" paint-order="stroke">${esc(label)}</text>`:""}`;}).join("");
+    const legend=r.items.map((x,i)=>`<g transform="translate(375 ${36+i*28})"><rect width="12" height="12" rx="3" fill="${PASTEL_COLORS[i%PASTEL_COLORS.length]}"/><text x="20" y="11" font-size="13" fill="#202124">${esc(text(x.label).slice(0,28))}：${x.count}</text></g>`).join("");
+    return `<svg class="analysis-chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="円グラフ">${slices}${legend}</svg>`;
   }
   window.changeChartType=(i,type)=>{const host=document.querySelector(`#analysisChart${i}`),r=results[i];r.chartType=type;if(host)host.innerHTML=type==="pie"?pieChartHtml(r):barChartHtml(r);};
 

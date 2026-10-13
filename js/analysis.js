@@ -56,14 +56,30 @@
   async function dbPut(value){const db=await openAnalysisDB();return new Promise((resolve,reject)=>{const tx=db.transaction(ANALYSIS_STORE,"readwrite");tx.objectStore(ANALYSIS_STORE).put(value,ANALYSIS_KEY);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};});}
   async function dbGet(){const db=await openAnalysisDB();return new Promise((resolve,reject)=>{const tx=db.transaction(ANALYSIS_STORE,"readonly"),req=tx.objectStore(ANALYSIS_STORE).get(ANALYSIS_KEY);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);tx.oncomplete=()=>db.close();});}
   async function dbDelete(){const db=await openAnalysisDB();return new Promise((resolve,reject)=>{const tx=db.transaction(ANALYSIS_STORE,"readwrite");tx.objectStore(ANALYSIS_STORE).delete(ANALYSIS_KEY);tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();reject(tx.error);};});}
-  function savedChartTypes(){return Object.fromEntries(results.map(r=>[r.variable,r.chartType||"bar"]));}
+  function savedAnalysisSettings(){
+    return Object.fromEntries(results.map(r=>[r.variable,{
+      chartType:r.chartType||"bar",
+      labelMode:r.labelMode||"percent",
+      numericMode:r.numericMode||(r.type==="NUMERIC"?"bins":"raw"),
+      binCount:Number(r.binCount)||10,
+      rangeMin:Number(r.rangeMin),
+      rangeMax:Number(r.rangeMax)
+    }]));
+  }
+  function normalizeSavedSettings(saved){
+    if(!saved||typeof saved!=="object")return {};
+    return Object.fromEntries(Object.entries(saved).map(([variable,value])=>[
+      variable,
+      typeof value==="string"?{chartType:value}:value||{}
+    ]));
+  }
   function formatSavedAt(value){try{return new Intl.DateTimeFormat("ja-JP",{dateStyle:"medium",timeStyle:"short"}).format(new Date(value));}catch{return text(value);}}
   async function refreshSaveStatus(){try{const saved=await dbGet();if(saved){saveStatus.textContent=`保存済み：${formatSavedAt(saved.savedAt)}（${saved.dataFileName||"データExcel"}／${saved.mappingFileName||"対応表Excel"}）`;resumeButton.disabled=false;deleteButton.disabled=false;}else{saveStatus.textContent="保存データはありません。";resumeButton.disabled=true;deleteButton.disabled=true;}}catch(error){saveStatus.textContent=`途中保存を確認できません：${error.message}`;}}
   async function saveAnalysisWorkspace(){
     if(!dataFileBuffer||!mappingFileBuffer){alert("データExcelと対応表Excelを読み込んでから途中保存してください。");return;}
     saveButton.disabled=true;
     try{
-      const payload={version:1,savedAt:new Date().toISOString(),dataFileName,mappingFileName,dataBuffer:dataFileBuffer.slice(0),mappingBuffer:mappingFileBuffer.slice(0),chartTypes:savedChartTypes(),scrollY:window.scrollY};
+      const payload={version:2,savedAt:new Date().toISOString(),dataFileName,mappingFileName,dataBuffer:dataFileBuffer.slice(0),mappingBuffer:mappingFileBuffer.slice(0),analysisSettings:savedAnalysisSettings(),scrollY:window.scrollY};
       await dbPut(payload);
       const verified=await dbGet();
       if(!verified||!verified.dataBuffer||!verified.mappingBuffer)throw new Error("保存内容を読み戻せませんでした。");
@@ -80,7 +96,7 @@
       dataModel=parseDataWorkbook(await workbookFromBuffer(dataFileBuffer));mappingModel=parseMappingWorkbook(await workbookFromBuffer(mappingFileBuffer));
       setStatus(dataStatus,"ok",`${dataFileName}：${dataModel.rows.length}行 × ${dataModel.headers.length}列を復元しました。`);
       setStatus(mappingStatus,"ok",`${mappingFileName}：${mappingModel.maps.size}設問を復元しました。`);
-      runAnalysis(saved.chartTypes||{});
+      runAnalysis(saved.analysisSettings||saved.chartTypes||{});
       saveStatus.textContent=`再開済み：${formatSavedAt(saved.savedAt)}`;
       requestAnimationFrame(()=>window.scrollTo({top:Number(saved.scrollY)||0,behavior:"auto"}));
     }catch(error){alert(`保存データから再開できませんでした。\n${error.message}`);}finally{resumeButton.disabled=false;}
@@ -223,7 +239,7 @@
     }
     return null;
   }
-  function runAnalysis(chartTypes={}){
+  function runAnalysis(savedSettings={}){
     if(!dataModel || !mappingModel){alert("回答データと設問別対応表の両方を読み込んでください。");return;}
     const mapped=[...mappingModel.maps.values()].map(analyzeOne).filter(Boolean);
     const mappedVariables=new Set(mapped.map(r=>r.variable));
@@ -231,13 +247,23 @@
       .filter(meta=>meta.variable!=="V0" && !mappedVariables.has(meta.variable) && dataModel.index.has(meta.variable))
       .map(analyzeNumeric).filter(Boolean);
     results=[...mapped,...numeric].sort(sortV);
+    const settings=normalizeSavedSettings(savedSettings);
     results.forEach(r=>{
-      r.chartType=chartTypes[r.variable]||r.chartType||"bar";r.labelMode=(r.labelMode&&r.labelMode!=="none")?r.labelMode:"percent";
+      const restored=settings[r.variable]||{};
       if(r.type==="SA"||r.type==="MA"){
-        r.categoryItems=(r.items||[]).map(x=>({...x}));r.numericMode="raw";
-        const nums=categoricalNumericValues(r);const values=nums.map(x=>x.value);
-        r.binCount=10;r.rangeMin=values.length?Math.min(...values):0;r.rangeMax=values.length?Math.max(...values):1;
+        r.categoryItems=(r.items||[]).map(x=>({...x}));
+        const nums=categoricalNumericValues(r),values=nums.map(x=>x.value);
+        r.numericMode="raw";r.binCount=10;
+        r.rangeMin=values.length?Math.min(...values):0;
+        r.rangeMax=values.length?Math.max(...values):1;
       }
+      r.chartType=restored.chartType||r.chartType||"bar";
+      r.labelMode=restored.labelMode||r.labelMode||"percent";
+      if(restored.numericMode==="raw"||restored.numericMode==="bins")r.numericMode=restored.numericMode;
+      if(Number.isFinite(Number(restored.binCount)))r.binCount=Math.max(2,Math.min(50,Number(restored.binCount)));
+      if(Number.isFinite(Number(restored.rangeMin)))r.rangeMin=Number(restored.rangeMin);
+      if(Number.isFinite(Number(restored.rangeMax)))r.rangeMax=Number(restored.rangeMax);
+      refreshNumeric(r);
     });
     renderResults();
     const invalid=results.reduce((n,r)=>n+r.invalid,0), skipped=[...mappingModel.maps.keys()].filter(v=>!results.some(r=>r.variable===v)).length;
@@ -385,6 +411,35 @@
     downloadBlob(new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`${r.variable}_表とグラフ.xlsx`);
   };
 
+  function requireResults(){
+    if(results.length)return true;
+    alert("先に簡易分析を実行してください。");
+    return false;
+  }
+  function saveError(kind,error){
+    console.error(`${kind}保存エラー`,error);
+    alert(`${kind}の保存に失敗しました。\n${error?.message||error}`);
+  }
+  function safeSheetName(value){
+    return (text(value)||"集計").replace(/[\\/?*\[\]:]/g,"_").slice(0,31)||"集計";
+  }
+  function fillResultSheet(ws,r){
+    ws.addRow(["V番号",r.variable]);
+    ws.addRow(["設問文",r.question]);
+    if(r.type==="NUMERIC"){
+      ws.addRow(["有効",r.valid]);ws.addRow(["欠測",r.missing]);
+      ws.addRow(["平均",r.mean]);ws.addRow(["中央値",r.median]);
+      ws.addRow(["最小",r.min]);ws.addRow(["最大",r.max]);
+      ws.addRow(["表示形式",r.numericMode==="raw"?"値ごとの件数":`階級（${r.binCount}段階、${r.rangeMin}～${r.rangeMax}）`]);
+    }
+    ws.addRow([]);
+    const header=ws.addRow([r.type==="NUMERIC"?"階級番号":"加工済の番号",r.type==="NUMERIC"?"値・階級":"回答選択肢","件数","割合"]);
+    header.font={bold:true,color:{argb:"FFFFFFFF"}};
+    header.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF673AB7"}};
+    r.items.forEach(x=>ws.addRow([x.code,x.label,x.count,x.percent/100]));
+    ws.getColumn(1).width=18;ws.getColumn(2).width=55;ws.getColumn(3).width=12;ws.getColumn(4).width=12;ws.getColumn(4).numFmt="0.0%";
+    ws.getCell("A1").font={bold:true};ws.getCell("A2").font={bold:true};ws.getCell("B2").alignment={wrapText:true,vertical:"top"};
+  }
   async function resultWorkbook(){
     const wb=new ExcelJS.Workbook();
     results.forEach(r=>{
@@ -422,8 +477,8 @@
     const bars=r.items.map((x,i)=>{const y=90+i*rowH,bw=460*x.count/max,label=valueLabel(r,x);return `<text x="20" y="${y+15}" font-size="14">${esc(x.label)}</text><rect x="380" y="${y}" width="565" height="22" rx="6" fill="#eef1f5"/><rect x="380" y="${y}" width="${bw}" height="22" rx="6" fill="${PNG_COLORS[i%PNG_COLORS.length]}"/>${label?`<text x="${388+bw}" y="${y+16}" font-size="13" font-weight="700">${esc(label)}</text>`:""}`;}).join("");
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="white"/><text x="20" y="28" font-size="18" font-weight="bold" fill="#6d28d9">${esc(r.variable)}</text><text x="20" y="56" font-size="15">${esc(r.question)}</text><text x="20" y="80" font-size="15" font-weight="700">N=${r.valid}</text>${bars}</svg>`;
   }
-  window.downloadAllCharts=async()=>{const zip=new JSZip();results.forEach(r=>zip.file(`${r.variable}_グラフ.svg`,svgForResult(r)));downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_グラフ一式.zip");};
-  window.downloadAllReports=async()=>{const zip=new JSZip();const wb=await resultWorkbook();zip.file("簡易分析_全設問.xlsx",await wb.xlsx.writeBuffer());results.forEach(r=>{zip.file(`${r.variable}_単純集計.csv`,"\ufeff"+csvForResult(r));zip.file(`${r.variable}_グラフ.svg`,svgForResult(r));});downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_全表とグラフ.zip");};
+  window.downloadAllCharts=async()=>{if(!requireResults())return;const zip=new JSZip();results.forEach(r=>zip.file(`${r.variable}_グラフ.svg`,svgForResult(r)));downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_グラフ一式.zip");};
+  window.downloadAllReports=async()=>{if(!requireResults())return;const zip=new JSZip();const wb=await resultWorkbook();zip.file("簡易分析_全設問.xlsx",await wb.xlsx.writeBuffer());results.forEach(r=>{zip.file(`${r.variable}_単純集計.csv`,"\ufeff"+csvForResult(r));zip.file(`${r.variable}_グラフ.svg`,svgForResult(r));});downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_全表とグラフ.zip");};
 
   window.downloadAllPDF=async()=>{
     if(!requireResults())return;
@@ -443,7 +498,7 @@
   };
   dataInput.addEventListener("change",async e=>{try{const file=e.target.files[0];if(!file)return;setStatus(dataStatus,"warn","読み込み中…");dataFileBuffer=await file.arrayBuffer();dataFileName=file.name;dataModel=parseDataWorkbook(await workbookFromBuffer(dataFileBuffer));setStatus(dataStatus,"ok",`${file.name}：${dataModel.rows.length}行 × ${dataModel.headers.length}列を読み込みました。`);}catch(err){dataModel=null;dataFileBuffer=null;setStatus(dataStatus,"error",err.message);}});
   mapInput.addEventListener("change",async e=>{try{const file=e.target.files[0];if(!file)return;setStatus(mappingStatus,"warn","読み込み中…");mappingFileBuffer=await file.arrayBuffer();mappingFileName=file.name;mappingModel=parseMappingWorkbook(await workbookFromBuffer(mappingFileBuffer));const extra=mappingModel.warnings.length?` 重複コードは規定選択肢を優先して${mappingModel.warnings.length}設問で統合しました。`:"";setStatus(mappingStatus,"ok",`${file.name}：${mappingModel.maps.size}設問を読み込みました。${extra}`);}catch(err){mappingModel=null;mappingFileBuffer=null;setStatus(mappingStatus,"error",err.message);}});
-  runButton.addEventListener("click",()=>runAnalysis(savedChartTypes()));
+  runButton.addEventListener("click",()=>runAnalysis(savedAnalysisSettings()));
   saveButton.addEventListener("click",saveAnalysisWorkspace);
   resumeButton.addEventListener("click",restoreAnalysisWorkspace);
   deleteButton.addEventListener("click",deleteAnalysisWorkspace);

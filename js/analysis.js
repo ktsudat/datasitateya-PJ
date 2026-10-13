@@ -281,17 +281,29 @@
   }
   const PASTEL_COLORS=["#8FB3E8","#86D1C5","#F4C08A","#EE9CAA","#B69BDD","#8CC8E2","#A8D58A","#F1D477","#D59ACA","#95D0B1","#F2A47F","#A8B9DC"];
   function barChartHtml(r){
-    const max=Math.max(1,...r.items.map(x=>x.count)),colors=["#7C9CE6","#70C1B3","#F2B880","#E88FA2","#A98BD4","#78B7D0","#9BCB76","#E5C36D","#C78FBF","#8EC5A4","#EE9B73","#92A8D1"];
+    const max=Math.max(1,...r.items.map(x=>x.count));
     return `<div class="analysis-bar-list">${r.items.map((x,i)=>{
       const width=x.count>0?Math.max(2,x.count/max*100):0;
-      return `<div class="analysis-bar-row ${x.count>0?"has-value":"is-zero"}"><span class="analysis-bar-label"><i class="analysis-color-dot" style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}</span><span class="analysis-bar-track"><span class="analysis-bar" style="width:${width}%;background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"><b class="analysis-bar-inside">${valueLabel(r,x)}</b></span></span><span class="analysis-bar-value">${x.count}</span></div>`;
+      const label=valueLabel(r,x);
+      return `<div class="analysis-bar-row ${x.count>0?"has-value":"is-zero"}"><span class="analysis-bar-label"><i class="analysis-color-dot" style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}</span><span class="analysis-bar-track"><span class="analysis-bar" style="width:${width}%;background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></span>${label?`<b class="analysis-bar-data-label">${esc(label)}</b>`:""}</span><span class="analysis-bar-value">${x.count}</span></div>`;
     }).join("")}</div>`;
   }
   function pieChartHtml(r){
     const total=r.items.reduce((n,x)=>n+x.count,0)||1, colors=PASTEL_COLORS;
-    let acc=0;const stops=r.items.map((x,i)=>{const from=acc,to=acc+x.count/total*100;acc=to;return `${colors[i%colors.length]} ${from}% ${to}%`;}).join(",");
+    let acc=0;
+    const stops=r.items.map((x,i)=>{const from=acc,to=acc+x.count/total*100;acc=to;return `${colors[i%colors.length]} ${from}% ${to}%`;}).join(",");
+    let angle=-90;
+    const labels=r.items.map((x,i)=>{
+      const sweep=x.count/total*360,mid=angle+sweep/2;angle+=sweep;
+      const label=valueLabel(r,x);
+      if(!label||x.count<=0)return "";
+      const rad=mid*Math.PI/180;
+      const radius=sweep<18?46:34;
+      const left=50+Math.cos(rad)*radius,top=50+Math.sin(rad)*radius;
+      return `<span class="analysis-pie-data-label ${sweep<18?"is-small":""}" style="left:${left}%;top:${top}%">${esc(label)}</span>`;
+    }).join("");
     const legend=r.items.map((x,i)=>`<span><i style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}：${x.count}${r.labelMode==="percent"?`（${x.percent.toFixed(1)}%）`:""}</span>`).join("");
-    return `<div class="analysis-pie-wrap"><div class="analysis-pie" style="background:conic-gradient(${stops})"></div><div class="analysis-pie-legend">${legend}</div></div>`;
+    return `<div class="analysis-pie-wrap"><div class="analysis-pie-box"><div class="analysis-pie" style="background:conic-gradient(${stops})"></div>${labels}</div><div class="analysis-pie-legend">${legend}</div></div>`;
   }
   window.changeChartType=(i,type)=>{const host=document.querySelector(`#analysisChart${i}`),r=results[i];r.chartType=type;if(host)host.innerHTML=type==="pie"?pieChartHtml(r):barChartHtml(r);};
 
@@ -317,7 +329,17 @@
   function wrappedLines(ctx,value,maxWidth){const chars=[...text(value)],lines=[];let line="";for(const ch of chars){if(ctx.measureText(line+ch).width>maxWidth&&line){lines.push(line);line=ch;}else line+=ch;}if(line)lines.push(line);return lines.length?lines:[""];}
   function drawHeader(ctx,r,width){ctx.fillStyle="#673ab7";ctx.font="700 18px 'Noto Sans JP',sans-serif";ctx.fillText(`${r.variable} / ${r.type}`,28,28);ctx.fillStyle="#202124";ctx.font="700 17px 'Noto Sans JP',sans-serif";const lines=wrappedLines(ctx,r.question||"設問文なし",width-56);lines.slice(0,3).forEach((line,i)=>ctx.fillText(line,28,62+i*24));const base=62+Math.min(lines.length,3)*24;ctx.fillStyle="#5f6470";ctx.font="13px 'Noto Sans JP',sans-serif";ctx.fillText(statsText(r),28,base+18);return base+42;}
   function tableCanvas(r){const width=1000,rowH=42,headExtra=130,height=headExtra+rowH*(r.items.length+1)+30,{canvas,ctx}=setupCanvas(width,height);let y=drawHeader(ctx,r,width);const cols=[28,120,650,790,970];ctx.fillStyle="#f2edf9";ctx.fillRect(20,y,width-40,rowH);ctx.fillStyle="#202124";ctx.font="700 14px 'Noto Sans JP',sans-serif";["番号",r.type==="NUMERIC"?"値・階級":"回答選択肢","件数","割合"].forEach((v,i)=>ctx.fillText(v,cols[i]+8,y+rowH/2));y+=rowH;ctx.font="14px 'Noto Sans JP',sans-serif";r.items.forEach(item=>{ctx.strokeStyle="#ded8e6";ctx.beginPath();ctx.moveTo(20,y+rowH);ctx.lineTo(width-20,y+rowH);ctx.stroke();ctx.fillStyle="#202124";ctx.fillText(text(item.code),cols[0]+8,y+rowH/2);ctx.fillText(text(item.label).slice(0,52),cols[1]+8,y+rowH/2);ctx.textAlign="right";ctx.fillText(String(item.count),cols[3]-18,y+rowH/2);ctx.fillText(`${item.percent.toFixed(1)}%`,cols[4]-8,y+rowH/2);ctx.textAlign="left";y+=rowH;});return canvas;}
-  function chartCanvas(r){const width=1000,rowH=44,height=Math.max(430,140+r.items.length*rowH),{canvas,ctx}=setupCanvas(width,height);let y=drawHeader(ctx,r,width);if((r.chartType||"bar")==="pie"&&r.type!=="NUMERIC"){const total=r.items.reduce((n,x)=>n+x.count,0)||1,cx=285,cy=y+150,radius=125;let start=-Math.PI/2;r.items.forEach((item,i)=>{const angle=item.count/total*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,start,start+angle);ctx.closePath();ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fill();start+=angle;});ctx.font="13px 'Noto Sans JP',sans-serif";r.items.forEach((item,i)=>{const ly=y+20+i*28;ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fillRect(500,ly-6,12,12);ctx.fillStyle="#202124";ctx.fillText(`${item.label}：${item.count}${r.labelMode==="percent"?`（${item.percent.toFixed(1)}%）`:""}`,522,ly);});}else{const max=Math.max(1,...r.items.map(x=>x.count));ctx.font="13px 'Noto Sans JP',sans-serif";r.items.forEach((item,i)=>{const yy=y+i*rowH;ctx.fillStyle="#202124";ctx.fillText(text(item.label).slice(0,30),28,yy+16);ctx.fillStyle="#eeeaf3";ctx.fillRect(360,yy+5,520,20);const bw=item.count?Math.max(4,item.count/max*520):0;ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fillRect(360,yy+5,bw,20);const vl=valueLabel(r,item);if(vl){ctx.fillStyle="#24303f";ctx.font="700 12px 'Noto Sans JP',sans-serif";ctx.fillText(vl,Math.min(820,370+bw),yy+16);}ctx.fillStyle="#202124";ctx.fillText(String(item.count),900,yy+16);});}return canvas;}
+  function chartCanvas(r){
+    const width=1000,rowH=48,height=Math.max(460,155+r.items.length*rowH),{canvas,ctx}=setupCanvas(width,height);let y=drawHeader(ctx,r,width);
+    if((r.chartType||"bar")==="pie"&&r.type!=="NUMERIC"){
+      const total=r.items.reduce((n,x)=>n+x.count,0)||1,cx=290,cy=y+165,radius=135;let start=-Math.PI/2;
+      r.items.forEach((item,i)=>{const angle=item.count/total*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,start,start+angle);ctx.closePath();ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fill();const label=valueLabel(r,item);if(label&&item.count>0){const mid=start+angle/2,ratio=angle<Math.PI/10?.82:.64,lx=cx+Math.cos(mid)*radius*ratio,ly=cy+Math.sin(mid)*radius*ratio;ctx.font="700 13px 'Noto Sans JP',sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";const tw=ctx.measureText(label).width;ctx.fillStyle="rgba(255,255,255,.88)";ctx.fillRect(lx-tw/2-5,ly-10,tw+10,20);ctx.fillStyle="#202124";ctx.fillText(label,lx,ly);ctx.textAlign="left";}start+=angle;});
+      ctx.font="13px 'Noto Sans JP',sans-serif";r.items.forEach((item,i)=>{const ly=y+22+i*29;ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fillRect(520,ly-6,12,12);ctx.fillStyle="#202124";ctx.fillText(`${item.label}：${item.count}${r.labelMode==="percent"?`（${item.percent.toFixed(1)}%）`:""}`,542,ly);});
+    }else{
+      const max=Math.max(1,...r.items.map(x=>x.count)),barX=355,barMax=465,labelArea=105;ctx.font="13px 'Noto Sans JP',sans-serif";
+      r.items.forEach((item,i)=>{const yy=y+i*rowH;ctx.fillStyle="#202124";ctx.fillText(text(item.label).slice(0,30),28,yy+18);ctx.fillStyle="#eeeaf3";ctx.fillRect(barX,yy+7,barMax+labelArea,22);const bw=item.count?Math.max(4,item.count/max*barMax):0;ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fillRect(barX,yy+7,bw,22);const vl=valueLabel(r,item);if(vl){ctx.fillStyle="#24303f";ctx.font="700 12px 'Noto Sans JP',sans-serif";ctx.fillText(vl,barX+bw+8,yy+18);}ctx.fillStyle="#202124";ctx.font="13px 'Noto Sans JP',sans-serif";ctx.fillText(String(item.count),940,yy+18);});
+    }return canvas;
+  }
   function combinedCanvas(r){const table=tableCanvas(r),chart=chartCanvas(r),width=Math.max(table.width,chart.width)/Math.max(2,window.devicePixelRatio||1),tableH=table.height/Math.max(2,window.devicePixelRatio||1),chartH=chart.height/Math.max(2,window.devicePixelRatio||1),out=setupCanvas(width,tableH+chartH+20);out.ctx.drawImage(table,0,0,width,tableH);out.ctx.strokeStyle="#ded8e6";out.ctx.beginPath();out.ctx.moveTo(20,tableH+10);out.ctx.lineTo(width-20,tableH+10);out.ctx.stroke();out.ctx.drawImage(chart,0,tableH+20,width,chartH);return out.canvas;}
   function downloadCanvas(canvas,name){canvas.toBlob(blob=>{if(blob)downloadBlob(blob,name);},"image/png");}
   window.downloadTablePNG=i=>downloadCanvas(tableCanvas(results[i]),`${results[i].variable}_表.png`);
@@ -339,8 +361,13 @@
   window.downloadAllExcel=async()=>{const wb=await resultWorkbook();downloadBlob(new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),"簡易分析_全設問.xlsx");};
   window.downloadAllCSVs=async()=>{const zip=new JSZip();results.forEach(r=>zip.file(`${r.variable}_単純集計.csv`,"\ufeff"+csvForResult(r)));downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_CSV一式.zip");};
   function svgForResult(r){
-    const w=960,rowH=42,h=110+r.items.length*rowH,max=Math.max(1,...r.items.map(x=>x.count));
-    const bars=r.items.map((x,i)=>{const y=85+i*rowH,bw=520*x.count/max;return `<text x="20" y="${y+14}" font-size="14">${esc(x.label)}</text><rect x="380" y="${y}" width="${bw}" height="20" rx="6" fill="#6d28d9"/><text x="${390+bw}" y="${y+15}" font-size="13">${x.count}</text>`;}).join("");
+    const w=1000,rowH=46,h=125+r.items.length*rowH,max=Math.max(1,...r.items.map(x=>x.count));
+    if((r.chartType||"bar")==="pie"&&r.type!=="NUMERIC"){
+      const total=r.items.reduce((n,x)=>n+x.count,0)||1,cx=280,cy=240,radius=125;let start=-Math.PI/2;
+      const slices=r.items.map((x,i)=>{const angle=x.count/total*Math.PI*2,end=start+angle,x1=cx+Math.cos(start)*radius,y1=cy+Math.sin(start)*radius,x2=cx+Math.cos(end)*radius,y2=cy+Math.sin(end)*radius,large=angle>Math.PI?1:0,path=`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2} Z`;const mid=start+angle/2,label=valueLabel(r,x),lx=cx+Math.cos(mid)*radius*.64,ly=cy+Math.sin(mid)*radius*.64;start=end;return `<path d="${path}" fill="${PNG_COLORS[i%PNG_COLORS.length]}"/>${label?`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" fill="#202124">${esc(label)}</text>`:""}`;}).join("");
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="500" viewBox="0 0 ${w} 500"><rect width="100%" height="100%" fill="white"/><text x="20" y="28" font-size="18" font-weight="bold" fill="#6d28d9">${esc(r.variable)}</text><text x="20" y="56" font-size="15">${esc(r.question)}</text>${slices}</svg>`;
+    }
+    const bars=r.items.map((x,i)=>{const y=90+i*rowH,bw=460*x.count/max,label=valueLabel(r,x);return `<text x="20" y="${y+15}" font-size="14">${esc(x.label)}</text><rect x="380" y="${y}" width="565" height="22" rx="6" fill="#eef1f5"/><rect x="380" y="${y}" width="${bw}" height="22" rx="6" fill="${PNG_COLORS[i%PNG_COLORS.length]}"/>${label?`<text x="${388+bw}" y="${y+16}" font-size="13" font-weight="700">${esc(label)}</text>`:""}`;}).join("");
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="white"/><text x="20" y="28" font-size="18" font-weight="bold" fill="#6d28d9">${esc(r.variable)}</text><text x="20" y="56" font-size="15">${esc(r.question)}</text>${bars}</svg>`;
   }
   window.downloadAllCharts=async()=>{const zip=new JSZip();results.forEach(r=>zip.file(`${r.variable}_グラフ.svg`,svgForResult(r)));downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_グラフ一式.zip");};

@@ -54,3 +54,9 @@
 .analysis-chart-host{overflow:visible!important;min-width:0}
 .analysis-chart-svg{display:block;width:100%;height:auto;min-height:260px;overflow:visible;font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif}
 @media(max-width:700px){.analysis-chart-svg{min-width:620px}.analysis-chart-host{overflow-x:auto!important;padding-bottom:8px}}
+
+/* Axis and typography refinement */
+.analysis-chart-svg text{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif}
+.analysis-chart-host{padding:10px 4px 4px;overflow:visible!important}
+.analysis-bar-svg{min-height:320px}
+@media(max-width:900px){.analysis-chart-svg{min-width:760px}.analysis-chart-host{overflow-x:auto!important}}

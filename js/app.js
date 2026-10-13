@@ -30,13 +30,14 @@ function effectiveOptions(question){
   return [...official,{label:question.groupedOtherLabel||"その他",code:official.length+1,isOther:true,synthetic:true}];
 }
 function makeOtherCandidate(value){
-  return {value:String(value ?? "").trim(),action:"other",targetCode:""};
+  return {value:String(value ?? "").trim(),action:"other",targetCode:"",targetLabel:""};
 }
 function normaliseOtherCandidates(question){
   question.otherCandidates=(question.otherCandidates||[]).map(candidate=>({
     value:String(candidate.value ?? "").trim(),
     action:candidate.action || (candidate.accepted===false ? "missing" : "other"),
-    targetCode:String(candidate.targetCode ?? "")
+    targetCode:String(candidate.targetCode ?? ""),
+    targetLabel:String(candidate.targetLabel ?? "")
   })).filter(candidate=>candidate.value);
 }
 function refreshOtherCandidates(question){
@@ -154,8 +155,16 @@ function processingCard(q){
   return `<article class="card setting-card" data-question-card="${q.columnIndex}"><div class="setting-head"><strong>${escapeHtml(q.variableName)}　${escapeHtml(q.header)}</strong><select onchange="setMethod(${q.columnIndex},this.value)"><option value="none" ${q.method==="none"?"selected":""}>1. 加工しない</option><option value="prefix" ${q.method==="prefix"?"selected":""}>2. 先頭の整数を利用</option><option value="manual" ${q.method==="manual"?"selected":""}>3. 回答ごとに番号を手動設定</option><option value="multi" ${q.method==="multi"?"selected":""}>4. 複数選択を選択肢別の有無に分ける</option></select></div>${q.method==="none"?'<p class="help">元の値を残します。</p>':processingDetails(q)}</article>`;
 }
 function candidateDisplayValue(candidate){return otherFreeText(candidate?.value)||String(candidate?.value??"").trim();}
+function resolveCandidateTarget(q,candidate){
+  const options=effectiveOptions(q).filter(option=>!option.isOther);
+  if(candidate?.targetLabel){
+    const byLabel=options.find(option=>normalize(option.label)===normalize(candidate.targetLabel));
+    if(byLabel)return byLabel;
+  }
+  return options.find(option=>String(option.code)===String(candidate?.targetCode));
+}
 function optionAssignments(q,option){
-  const mapped=(q.otherCandidates||[]).filter(c=>c.action==="map"&&String(c.targetCode)===String(option.code));
+  const mapped=(q.otherCandidates||[]).filter(c=>c.action==="map"&&resolveCandidateTarget(q,c)===option);
   const kept=option.isOther?(q.otherCandidates||[]).filter(c=>(c.action||"other")==="other"):[];
   return [...mapped,...kept];
 }
@@ -179,7 +188,7 @@ function multiGroupingSettings(q){
   const count=officialCount(q), total=(q.options||[]).length;
   return `<section class="multi-group-setting"><div><strong>正式な選択肢の範囲</strong><p class="help">上から何件までを個別の選択肢として出力するか指定できます。範囲外の回答は、すべて1つの「その他」列にまとめます。</p></div><label class="group-toggle"><input type="checkbox" ${groupedOtherEnabled(q)?"checked":""} onchange="setGroupOutside(${q.columnIndex},this.checked)"> 指定範囲外をすべて「その他」にまとめる</label>${groupedOtherEnabled(q)?`<div class="multi-group-controls"><label>正式な選択肢は上から<input type="number" min="1" max="${total}" value="${count}" onchange="setOfficialCount(${q.columnIndex},this.value)">件</label><label>「その他」の表示名<input value="${escapeHtml(q.groupedOtherLabel||"その他")}" onchange="setGroupedOtherLabel(${q.columnIndex},this.value)"></label><div class="group-result">出力: ${escapeHtml(q.variableName)}-1 ～ ${escapeHtml(q.variableName)}-${count} ＋ <strong>${escapeHtml(q.variableName)}-${count+1} ${escapeHtml(q.groupedOtherLabel||"その他")}</strong></div></div>`:""}</section>`;
 }
-function recodeResultText(q,c){if(c.action==="map"){const t=effectiveOptions(q).find(o=>String(o.code)===String(c.targetCode));return t?`${q.variableName}-${t.code} ${t.label}へ集約`:"振り分け先未選択";}if(c.action==="missing")return "欠測値「.」として処理";const o=effectiveOptions(q).find(x=>x.isOther);return o?`${q.variableName}-${o.code} ${o.label}へ集約`:"その他として保持";}
+function recodeResultText(q,c){if(c.action==="map"){const t=resolveCandidateTarget(q,c);return t?`${q.variableName}-${t.code} ${t.label}へ集約`:"振り分け先未選択";}if(c.action==="missing")return "欠測値「.」として処理";const o=effectiveOptions(q).find(x=>x.isOther);return o?`${q.variableName}-${o.code} ${o.label}へ集約`:"その他として保持";}
 function otherSettings(q){
   const choices=effectiveOptions(q).filter(option=>!option.isOther);
   const rowsHtml=q.otherCandidates.map((candidate,index)=>{
@@ -195,10 +204,14 @@ window.setGroupOutside=(i,v)=>{const q=questions[i];q.groupOutsideAsOther=v;if(v
 window.setOfficialCount=(i,v)=>{const q=questions[i];q.officialOptionCount=Math.min((q.options||[]).length,Math.max(1,Number(v)||1));refreshOtherCandidates(q);renderProcessing();save(false);};
 window.setGroupedOtherLabel=(i,v)=>{questions[i].groupedOtherLabel=v.trim()||"その他";updatePreview();save(false);};
 window.setOtherMode=(i,v)=>{questions[i].otherMode=v;renderProcessing();save(false);};
-window.setCandidateAction=(i,j,v)=>{const q=questions[i],candidate=q.otherCandidates[j];candidate.action=v;if(v!=="map")candidate.targetCode="";q.completed=false;renderProcessing();save(false);};
-window.setCandidateTarget=(i,j,v)=>{questions[i].otherCandidates[j].targetCode=v;questions[i].completed=false;renderProcessing();save(false);};
+window.setCandidateAction=(i,j,v)=>{const q=questions[i],candidate=q.otherCandidates[j];candidate.action=v;if(v!=="map"){candidate.targetCode="";candidate.targetLabel="";}q.completed=false;renderProcessing();save(false);};
+window.setCandidateTarget=(i,j,v)=>{const q=questions[i],candidate=q.otherCandidates[j],target=effectiveOptions(q).find(option=>String(option.code)===String(v)&&!option.isOther);candidate.targetCode=v;candidate.targetLabel=target?.label||"";q.completed=false;renderProcessing();save(false);};
 function setActionFeedback(button,text,isError=false){if(!button)return;const original=button.dataset.originalLabel||button.textContent.trim();button.dataset.originalLabel=original;button.textContent=text;button.classList.toggle("action-error",isError);setTimeout(()=>{button.textContent=button.dataset.originalLabel;button.classList.remove("action-error");},1300);}
-function rebuildQuestionState(q){if(!q)throw new Error("対象の設問が見つかりません。");normaliseOtherCandidates(q);refreshOtherCandidates(q);if(q.method==="multi")q.options.forEach((o,i)=>o.code=i+1);q.completed=true;return buildOutput();}
+function rebuildQuestionState(q){if(!q)throw new Error("対象の設問が見つかりません。");normaliseOtherCandidates(q);refreshOtherCandidates(q);if(q.method==="multi"){
+  (q.otherCandidates||[]).filter(c=>c.action==="map").forEach(c=>{const target=resolveCandidateTarget(q,c);if(target)c.targetLabel=target.label;});
+  q.options.forEach((o,i)=>o.code=i+1);
+  (q.otherCandidates||[]).filter(c=>c.action==="map").forEach(c=>{const target=resolveCandidateTarget(q,c);c.targetCode=target?String(target.code):"";});
+}q.completed=true;return buildOutput();}
 window.completeQuestion=(index,button)=>{try{const q=questions[index];rebuildQuestionState(q);save(false);renderProcessing();updatePreview();const b=document.querySelector(`[data-question-card="${index}"] .complete-button`);setActionFeedback(b||button,"✓ 保存済み");}catch(e){setActionFeedback(button,"保存失敗",true);alert(`編集内容を保存できませんでした。\n${e.message}`);}};
 window.reloadQuestion=(index,button)=>{try{if(button){button.disabled=true;button.classList.add("is-reloading");}rebuildQuestionState(questions[index]);renderProcessing();updatePreview();save(false);const b=document.querySelector(`[data-question-card="${index}"] .reload-map`);setActionFeedback(b||button,"✓");}catch(e){setActionFeedback(button,"!",true);alert(`再読み込みできませんでした。\n${e.message}`);}finally{if(button){button.disabled=false;button.classList.remove("is-reloading");}}};
 window.reloadAll=(button)=>{try{if(button){button.disabled=true;button.classList.add("is-reloading");}questions.filter(q=>q.include).forEach(rebuildQuestionState);const out=buildOutput(),summary=$("#summary");if(summary)summary.innerHTML=`加工後は <strong>${out.rows.length}</strong> 行 × <strong>${out.headers.length}</strong> 列です。欠測値は「.」です。<span class="reload-success">✓ 最新設定を反映しました</span>`;updatePreview();save(false);setActionFeedback(button,"✓ 反映済み");}catch(e){setActionFeedback(button,"再読込失敗",true);alert(`設定を再読み込みできませんでした。\n${e.message}`);}finally{if(button){button.disabled=false;button.classList.remove("is-reloading");}}};
@@ -209,15 +222,15 @@ function classify(q,value){
   const options=effectiveOptions(q), selected=new Set(), tokens=splitMulti(value), other=options.find(o=>o.isOther);
   let hasOther=false,invalid=false,blank=isBlank(value);
   for(const token of tokens){
-    const known=options.find(o=>!o.isOther&&normalize(o.label)===normalize(token));
-    if(known){selected.add(normalize(known.label));continue;}
     const candidate=(q.otherCandidates||[]).find(c=>normalize(c.value)===normalize(token));
     if(candidate?.action==="map"){
-      const target=options.find(option=>String(option.code)===String(candidate.targetCode) && !option.isOther);
+      const target=resolveCandidateTarget(q,candidate);
       if(target){selected.add(normalize(target.label));continue;}
       invalid=true;continue;
     }
     if(candidate?.action==="missing"){invalid=true;continue;}
+    const known=options.find(o=>!o.isOther&&normalize(o.label)===normalize(token));
+    if(known){selected.add(normalize(known.label));continue;}
     if(other&&(groupedOtherEnabled(q)||candidate?.action==="other"||(!candidate&&q.otherMode==="branch"))){hasOther=true;selected.add(normalize(other.label));continue;}
     invalid=true;
   }
@@ -228,7 +241,7 @@ function singleValue(q,raw){
   if(found)return found.code;
   const candidate=(q.otherCandidates||[]).find(item=>normalize(item.value)===normalize(raw));
   if(candidate?.action==="map"){
-    const target=effectiveOptions(q).find(option=>String(option.code)===String(candidate.targetCode));
+    const target=resolveCandidateTarget(q,candidate);
     return target?target.code:".";
   }
   if(candidate?.action==="missing")return ".";
@@ -320,7 +333,7 @@ window.downloadAllMaps=()=>exportWorkbook(questions.filter(q=>q.include).map(q=>
 window.importMap=async(i,file)=>{if(!file)return;try{const data=(await readSpreadsheet(file))[0].slice(1).filter(r=>r[1]!=="").sort((a,b)=>Number(a[0])-Number(b[0]));questions[i].options=data.map((r,j)=>({code:(String(r[0]??"").trim()===""?j+1:String(r[0]).trim()),label:String(r[1]),isOther:isOtherLabel(r[1])}));questions[i].hasOther=questions[i].options.some(o=>o.isOther);refreshOtherCandidates(questions[i]);renderProcessing();save(false);}catch(e){alert(e.message);}};
 window.importAllMaps=async file=>{if(!file)return;try{const sheets=await readSpreadsheet(file);questions.filter(q=>q.include).forEach((q,i)=>{const data=(sheets[i]||[]).slice(1).filter(r=>r[1]!=="");if(data.length){q.options=data.sort((a,b)=>Number(a[0])-Number(b[0])).map((r,j)=>({code:(String(r[0]??"").trim()===""?j+1:String(r[0]).trim()),label:String(r[1]),isOther:isOtherLabel(r[1])}));q.hasOther=q.options.some(o=>o.isOther);refreshOtherCandidates(q);}});renderProcessing();save(false);}catch(e){alert(e.message);}};
 function download(blob,name){const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}
-function processedMapRows(){const t=[["変数名","元の質問文","加工方法","出力列・コード","加工後の回答選択肢","元の自由回答","振り分け処理"]];if(includeId)t.push(["V0","ID番号","連番付与","V0","1から始まる連番","",""]);questions.filter(q=>q.include).forEach(q=>{if(q.method==="none"){t.push([q.variableName,q.header,"無加工",q.variableName,"元の値をそのまま出力","","無加工"]);return;}effectiveOptions(q).forEach(o=>t.push([q.variableName,q.header,q.method==="multi"?"複数選択を1/0化":"回答値をコード化",q.method==="multi"?`${q.variableName}-${o.code}`:o.code,o.label,"","選択肢"]));(q.otherCandidates||[]).forEach(c=>{const o=c.action==="map"?effectiveOptions(q).find(x=>String(x.code)===String(c.targetCode)):null;t.push([q.variableName,q.header,"自由回答の振り分け",o?.code||".",o?.label||"欠測値",c.value,c.action==="map"?"既存選択肢へ再分類":c.action==="missing"?"欠測値":"その他として保持"]);});});return t;}
+function processedMapRows(){const t=[["変数名","元の質問文","加工方法","出力列・コード","加工後の回答選択肢","元の自由回答","振り分け処理"]];if(includeId)t.push(["V0","ID番号","連番付与","V0","1から始まる連番","",""]);questions.filter(q=>q.include).forEach(q=>{if(q.method==="none"){t.push([q.variableName,q.header,"無加工",q.variableName,"元の値をそのまま出力","","無加工"]);return;}effectiveOptions(q).forEach(o=>t.push([q.variableName,q.header,q.method==="multi"?"複数選択を1/0化":"回答値をコード化",q.method==="multi"?`${q.variableName}-${o.code}`:o.code,o.label,"","選択肢"]));(q.otherCandidates||[]).forEach(c=>{const o=c.action==="map"?resolveCandidateTarget(q,c):null;t.push([q.variableName,q.header,"自由回答の振り分け",o?.code||".",o?.label||"欠測値",c.value,c.action==="map"?"既存選択肢へ再分類":c.action==="missing"?"欠測値":"その他として保持"]);});});return t;}
 window.downloadProcessedMap=()=>exportWorkbook(questions.filter(q=>q.include&&q.method!=="none").map(q=>[q.variableName,mapRows(q)]),"加工済み_設問別対応表.xlsx");
 window.exportExcel=()=>{const out=buildOutput();return exportWorkbook([["加工済みデータ",[out.headers,...out.rows]],["加工結果対応表",processedMapRows()]],"加工済みアンケートデータ.xlsx");};
 window.exportCSV=()=>{const out=buildOutput(),csv=[out.headers,...out.rows].map(row=>row.map(v=>`"${String(spreadsheetSafe(v)??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");download(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),"加工済みデータ_UTF8.csv");};

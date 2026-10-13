@@ -231,7 +231,14 @@
       .filter(meta=>meta.variable!=="V0" && !mappedVariables.has(meta.variable) && dataModel.index.has(meta.variable))
       .map(analyzeNumeric).filter(Boolean);
     results=[...mapped,...numeric].sort(sortV);
-    results.forEach(r=>{r.chartType=chartTypes[r.variable]||r.chartType||"bar";r.labelMode=(r.labelMode&&r.labelMode!=="none")?r.labelMode:"percent";});
+    results.forEach(r=>{
+      r.chartType=chartTypes[r.variable]||r.chartType||"bar";r.labelMode=(r.labelMode&&r.labelMode!=="none")?r.labelMode:"percent";
+      if(r.type==="SA"||r.type==="MA"){
+        r.categoryItems=(r.items||[]).map(x=>({...x}));r.numericMode="raw";
+        const nums=categoricalNumericValues(r);const values=nums.map(x=>x.value);
+        r.binCount=10;r.rangeMin=values.length?Math.min(...values):0;r.rangeMax=values.length?Math.max(...values):1;
+      }
+    });
     renderResults();
     const invalid=results.reduce((n,r)=>n+r.invalid,0), skipped=[...mappingModel.maps.keys()].filter(v=>!results.some(r=>r.variable===v)).length;
     summary.textContent=`${results.length}設問を集計しました。対応表に一致しない値は${invalid}件、データ列がない対応表は${skipped}件です。`;
@@ -251,20 +258,48 @@
     out.forEach(x=>x.percent=r.valid?x.count/r.valid*100:0);return out;
   }
   function round(v){return Math.round(v*100)/100;}
-  function refreshNumeric(r){if(r.type==="NUMERIC")r.items=numericItems(r);}
+  function categoricalNumericValues(r){
+    return (r.categoryItems||r.items||[]).map(x=>({value:Number(x.code),count:Number(x.count)||0})).filter(x=>Number.isFinite(x.value));
+  }
+  function categoricalBins(r){
+    const vals=categoricalNumericValues(r); if(!vals.length)return r.categoryItems||r.items||[];
+    const loDefault=Math.min(...vals.map(x=>x.value)),hiDefault=Math.max(...vals.map(x=>x.value));
+    const n=Math.max(2,Math.min(50,Number(r.binCount)||10)),lo=Number.isFinite(Number(r.rangeMin))?Number(r.rangeMin):loDefault,hi=Number.isFinite(Number(r.rangeMax))?Number(r.rangeMax):hiDefault;
+    if(hi<=lo)return r.categoryItems||r.items||[];
+    const width=(hi-lo)/n,bins=Array.from({length:n},(_,i)=>({code:String(i+1),label:`${round(lo+i*width)}～${round(lo+(i+1)*width)}`,count:0}));
+    let under=0,over=0; vals.forEach(x=>{if(x.value<lo)under+=x.count;else if(x.value>hi)over+=x.count;else bins[Math.min(n-1,Math.floor((x.value-lo)/width))].count+=x.count;});
+    const out=[];if(under)out.push({code:"<",label:`${round(lo)}未満`,count:under});out.push(...bins);if(over)out.push({code:">",label:`${round(hi)}超`,count:over});
+    out.forEach(x=>x.percent=r.valid?x.count/r.valid*100:0);return out;
+  }
+  function refreshNumeric(r){
+    if(r.type==="NUMERIC")r.items=numericItems(r);
+    else if((r.type==="SA"||r.type==="MA")&&r.numericMode==="bins")r.items=categoricalBins(r);
+    else if(r.categoryItems)r.items=r.categoryItems;
+  }
   function valueLabel(r,x){return r.labelMode==="count"?String(x.count):r.labelMode==="percent"?`${x.percent.toFixed(1)}%`:"";}
   function statsText(r){return r.type==="NUMERIC"?`有効 ${r.valid}件 ／ 欠測 ${r.missing}件 ／ 平均 ${r.mean.toFixed(1)} ／ 中央値 ${r.median.toFixed(1)} ／ 最小 ${r.min} ／ 最大 ${r.max}`:`有効 ${r.valid}件 ／ 欠測 ${r.missing}件`;}
   function controlsHtml(r,i){
-    const common=`<label>グラフ<select onchange="changeChartType(${i},this.value)" ${r.type==="NUMERIC"?"disabled":""}><option value="bar" ${r.chartType!=="pie"?"selected":""}>棒グラフ</option><option value="pie" ${r.chartType==="pie"?"selected":""}>円グラフ</option></select></label><label>グラフ内表示<select onchange="changeLabelMode(${i},this.value)"><option value="none" ${r.labelMode==="none"?"selected":""}>表示しない</option><option value="count" ${r.labelMode==="count"?"selected":""}>実数</option><option value="percent" ${r.labelMode==="percent"?"selected":""}>割合（%）</option></select></label>`;
-    if(r.type!=="NUMERIC")return common;
-    return common+`<label>数値のまとめ方<select onchange="changeNumericMode(${i},this.value)"><option value="bins" ${r.numericMode!=="raw"?"selected":""}>階級でまとめる</option><option value="raw" ${r.numericMode==="raw"?"selected":""}>値ごとの件数</option></select></label><span class="numeric-bin-settings ${r.numericMode==="raw"?"is-hidden":""}"><label>階級数<input type="number" min="2" max="50" value="${r.binCount}" onchange="changeNumericSetting(${i},'binCount',this.value)"></label><label>範囲<input type="number" value="${r.rangeMin}" onchange="changeNumericSetting(${i},'rangeMin',this.value)">～<input type="number" value="${r.rangeMax}" onchange="changeNumericSetting(${i},'rangeMax',this.value)"></label></span>`;
+    const common=`<label>グラフ<select onchange="changeChartType(${i},this.value)"><option value="bar" ${r.chartType!=="pie"?"selected":""}>棒グラフ</option><option value="pie" ${r.chartType==="pie"?"selected":""}>円グラフ</option></select></label><label>グラフ内表示<select onchange="changeLabelMode(${i},this.value)"><option value="none" ${r.labelMode==="none"?"selected":""}>表示しない</option><option value="count" ${r.labelMode==="count"?"selected":""}>実数</option><option value="percent" ${r.labelMode==="percent"?"selected":""}>割合（%）</option></select></label>`;
+    const canBin=r.type==="NUMERIC"||r.type==="SA"||r.type==="MA";
+    if(!canBin)return common;
+    const modeLabel=r.type==="NUMERIC"?"数値のまとめ方":"数値コードのまとめ方";
+    const current=r.numericMode||(r.type==="NUMERIC"?"bins":"raw");
+    return common+`<label>${modeLabel}<select onchange="changeNumericMode(${i},this.value)"><option value="bins" ${current!=="raw"?"selected":""}>階級でまとめる</option><option value="raw" ${current==="raw"?"selected":""}>${r.type==="NUMERIC"?"値ごとの件数":"通常の選択肢表示"}</option></select></label><span class="numeric-bin-settings ${current==="raw"?"is-hidden":""}"><label>階級数<input type="number" min="2" max="50" value="${r.binCount}" onchange="changeNumericSetting(${i},'binCount',this.value)"></label><label>範囲<input type="number" value="${r.rangeMin}" onchange="changeNumericSetting(${i},'rangeMin',this.value)">～<input type="number" value="${r.rangeMax}" onchange="changeNumericSetting(${i},'rangeMax',this.value)"></label></span>`;
   }
   function renderResults(){
     results.forEach(refreshNumeric);
-    resultsRoot.innerHTML=results.map((r,i)=>{const rows=r.items.map(x=>`<tr><td>${esc(x.code)}</td><td>${esc(x.label)}</td><td>${x.count}</td><td>${x.percent.toFixed(1)}%</td></tr>`).join("");const col=r.type==="NUMERIC"?(r.numericMode==="raw"?"値":"値・階級"):"回答選択肢";return `<article class="analysis-result-card" data-result="${i}"><header class="analysis-result-head"><div><span class="analysis-v-number">${esc(r.variable)} / ${r.type}</span><h2 class="analysis-question">${esc(r.question)}</h2></div><div class="analysis-meta">${statsText(r)}</div></header><div class="analysis-chart-control">${controlsHtml(r,i)}</div><div class="analysis-result-grid"><div><table class="analysis-table"><thead><tr><th>番号</th><th>${col}</th><th>件数</th><th>割合</th></tr></thead><tbody>${rows}</tbody></table></div><div class="analysis-chart-host" id="analysisChart${i}">${r.chartType==="pie"?pieChartHtml(r):barChartHtml(r)}</div></div><div class="analysis-export-groups"><section><strong>1. 表単体</strong><div><button class="button" onclick="downloadTablePNG(${i})">PNG</button><button class="button" onclick="downloadResultExcel(${i})">Excel</button><button class="button" onclick="downloadResultCSV(${i})">CSV</button></div></section><section><strong>2. グラフ単体</strong><div><button class="button" onclick="downloadChartPNG(${i})">PNG</button></div></section><section><strong>3. 表＋グラフ</strong><div><button class="button primary" onclick="downloadCombinedPNG(${i})">PNG</button></div></section></div></article>`}).join("");
+    resultsRoot.innerHTML=results.map((r,i)=>{const rows=r.items.map(x=>`<tr><td>${esc(x.code)}</td><td>${esc(x.label)}</td><td>${x.count}</td><td>${x.percent.toFixed(1)}%</td></tr>`).join("");const col=r.type==="NUMERIC"?(r.numericMode==="raw"?"値":"値・階級"):"回答選択肢";return `<article class="analysis-result-card" data-result="${i}"><header class="analysis-result-head"><div><span class="analysis-v-number">${esc(r.variable)} / ${r.type}</span><h2 class="analysis-question">${esc(r.question)}</h2></div><div class="analysis-meta">${statsText(r)}</div></header><div class="analysis-chart-control">${controlsHtml(r,i)}</div><div class="analysis-result-grid"><div><table class="analysis-table"><thead><tr><th>番号</th><th>${col}</th><th>件数</th><th>割合</th></tr></thead><tbody>${rows}</tbody></table></div><div class="analysis-chart-host" id="analysisChart${i}">${r.chartType==="pie"?pieChartHtml(r):barChartHtml(r)}</div></div><div class="analysis-export-groups"><section><strong>1. 表単体</strong><div><button class="button" onclick="downloadTablePNG(${i})">PNG</button><button class="button" onclick="downloadResultExcel(${i})">Excel</button><button class="button" onclick="downloadResultCSV(${i})">CSV</button></div></section><section><strong>2. グラフ単体</strong><div><button class="button" onclick="downloadChartPNG(${i})">PNG</button></div></section><section><strong>3. 表＋グラフ</strong><div><button class="button primary" onclick="downloadCombinedPNG(${i})">PNG</button><button class="button" onclick="downloadCombinedExcel(${i})">Excel</button><button class="button" onclick="downloadCombinedCSV(${i})">CSV</button></div></section></div></article>`}).join("");
   }
   window.changeLabelMode=(i,v)=>{results[i].labelMode=v;renderResults();};
-  window.changeNumericMode=(i,v)=>{results[i].numericMode=v;refreshNumeric(results[i]);renderResults();};
+  window.changeNumericMode=(i,v)=>{
+    const r=results[i];
+    if(v==="bins"&&(r.type==="SA"||r.type==="MA")){
+      const ok=confirm(`${r.type}の回答を数値階級にまとめます。通常は選択肢別に集計する設問です。本当に階級でまとめてよろしいですか？`);
+      if(!ok){renderResults();return;}
+      if(!categoricalNumericValues(r).length){alert("数値として扱える選択肢コードがないため、階級にまとめられません。");renderResults();return;}
+    }
+    r.numericMode=v;refreshNumeric(r);renderResults();
+  };
   window.changeNumericSetting=(i,k,v)=>{results[i][k]=Number(v);refreshNumeric(results[i]);renderResults();};
 
   function renderResultsLegacy(){
@@ -276,7 +311,7 @@
       const warnings=[]; if(r.invalid)warnings.push(`対応表にない値 ${r.invalid}件は除外`); if(r.unexpected)warnings.push(`対応表にないMA列 ${r.unexpected}列は除外`);
       const numericMeta=r.type==="NUMERIC"?`<br>平均 ${r.mean.toFixed(1)} ／ 中央値 ${r.median.toFixed(1)} ／ 最小 ${r.min} ／ 最大 ${r.max}`:"";
       const column2=r.type==="NUMERIC"?"値・階級":"回答選択肢";
-      return `<article class="analysis-result-card" data-result="${i}"><header class="analysis-result-head"><div><span class="analysis-v-number">${esc(r.variable)} / ${r.type}</span><h2 class="analysis-question">${esc(r.question||"設問文なし")}</h2></div><div class="analysis-meta">有効 ${r.valid}件 ／ 欠測 ${r.missing}件${numericMeta}${warnings.length?`<br><span class="analysis-status-warn">${esc(warnings.join("・"))}</span>`:""}</div></header><div class="analysis-chart-control"><label>グラフ<select onchange="changeChartType(${i},this.value)" ${r.type==="NUMERIC"?"disabled":""}><option value="bar" ${r.chartType!=="pie"?"selected":""}>棒グラフ</option><option value="pie" ${r.chartType==="pie"?"selected":""}>円グラフ</option></select></label></div><div class="analysis-result-grid"><div><table class="analysis-table"><thead><tr><th>番号</th><th>${column2}</th><th>件数</th><th>割合</th></tr></thead><tbody>${rows}</tbody></table></div><div class="analysis-chart-host" id="analysisChart${i}">${r.chartType==="pie"&&r.type!=="NUMERIC"?pieChartHtml(r):barChartHtml(r)}</div></div><div class="analysis-export-groups"><section><strong>1. 表単体</strong><div><button class="button" onclick="downloadTablePNG(${i})">PNG</button><button class="button" onclick="downloadResultExcel(${i})">Excel</button><button class="button" onclick="downloadResultCSV(${i})">CSV</button></div></section><section><strong>2. グラフ単体</strong><div><button class="button" onclick="downloadChartPNG(${i})">PNG</button></div></section><section><strong>3. 表＋グラフ</strong><div><button class="button primary" onclick="downloadCombinedPNG(${i})">PNG</button></div></section></div></article>`;
+      return `<article class="analysis-result-card" data-result="${i}"><header class="analysis-result-head"><div><span class="analysis-v-number">${esc(r.variable)} / ${r.type}</span><h2 class="analysis-question">${esc(r.question||"設問文なし")}</h2></div><div class="analysis-meta">有効 ${r.valid}件 ／ 欠測 ${r.missing}件${numericMeta}${warnings.length?`<br><span class="analysis-status-warn">${esc(warnings.join("・"))}</span>`:""}</div></header><div class="analysis-chart-control"><label>グラフ<select onchange="changeChartType(${i},this.value)"><option value="bar" ${r.chartType!=="pie"?"selected":""}>棒グラフ</option><option value="pie" ${r.chartType==="pie"?"selected":""}>円グラフ</option></select></label></div><div class="analysis-result-grid"><div><table class="analysis-table"><thead><tr><th>番号</th><th>${column2}</th><th>件数</th><th>割合</th></tr></thead><tbody>${rows}</tbody></table></div><div class="analysis-chart-host" id="analysisChart${i}">${r.chartType==="pie"?pieChartHtml(r):barChartHtml(r)}</div></div><div class="analysis-export-groups"><section><strong>1. 表単体</strong><div><button class="button" onclick="downloadTablePNG(${i})">PNG</button><button class="button" onclick="downloadResultExcel(${i})">Excel</button><button class="button" onclick="downloadResultCSV(${i})">CSV</button></div></section><section><strong>2. グラフ単体</strong><div><button class="button" onclick="downloadChartPNG(${i})">PNG</button></div></section><section><strong>3. 表＋グラフ</strong><div><button class="button primary" onclick="downloadCombinedPNG(${i})">PNG</button></div></section></div></article>`;
     }).join("");
   }
   const PASTEL_COLORS=["#8FB3E8","#86D1C5","#F4C08A","#EE9CAA","#B69BDD","#8CC8E2","#A8D58A","#F1D477","#D59ACA","#95D0B1","#F2A47F","#A8B9DC"];
@@ -320,7 +355,7 @@
   function tableCanvas(r){const width=1000,rowH=42,headExtra=130,height=headExtra+rowH*(r.items.length+1)+30,{canvas,ctx}=setupCanvas(width,height);let y=drawHeader(ctx,r,width);const cols=[28,120,650,790,970];ctx.fillStyle="#f2edf9";ctx.fillRect(20,y,width-40,rowH);ctx.fillStyle="#202124";ctx.font="700 14px 'Noto Sans JP',sans-serif";["番号",r.type==="NUMERIC"?"値・階級":"回答選択肢","件数","割合"].forEach((v,i)=>ctx.fillText(v,cols[i]+8,y+rowH/2));y+=rowH;ctx.font="14px 'Noto Sans JP',sans-serif";r.items.forEach(item=>{ctx.strokeStyle="#ded8e6";ctx.beginPath();ctx.moveTo(20,y+rowH);ctx.lineTo(width-20,y+rowH);ctx.stroke();ctx.fillStyle="#202124";ctx.fillText(text(item.code),cols[0]+8,y+rowH/2);ctx.fillText(text(item.label).slice(0,52),cols[1]+8,y+rowH/2);ctx.textAlign="right";ctx.fillText(String(item.count),cols[3]-18,y+rowH/2);ctx.fillText(`${item.percent.toFixed(1)}%`,cols[4]-8,y+rowH/2);ctx.textAlign="left";y+=rowH;});return canvas;}
   function chartCanvas(r){
     const width=1000,rowH=48,height=Math.max(460,155+r.items.length*rowH),{canvas,ctx}=setupCanvas(width,height);let y=drawHeader(ctx,r,width);
-    if((r.chartType||"bar")==="pie"&&r.type!=="NUMERIC"){
+    if((r.chartType||"bar")==="pie"){
       const total=r.items.reduce((n,x)=>n+x.count,0)||1,cx=290,cy=y+165,radius=135;let start=-Math.PI/2;
       r.items.forEach((item,i)=>{const angle=item.count/total*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,start,start+angle);ctx.closePath();ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fill();const label=valueLabel(r,item);if(label&&item.count>0){const mid=start+angle/2,small=item.percent<8;ctx.font="700 14px 'Noto Sans JP',sans-serif";ctx.textBaseline="middle";if(small){const ex=cx+Math.cos(mid)*radius,ey=cy+Math.sin(mid)*radius,mx=cx+Math.cos(mid)*(radius+28),my=cy+Math.sin(mid)*(radius+28),right=Math.cos(mid)>=0,tx=mx+(right?34:-34);ctx.strokeStyle="#596273";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(mx,my);ctx.lineTo(tx+(right?-6:6),my);ctx.stroke();ctx.textAlign=right?"left":"right";ctx.fillStyle="#202124";ctx.fillText(label,tx,my);}else{const lx=cx+Math.cos(mid)*radius*.64,ly=cy+Math.sin(mid)*radius*.64;ctx.textAlign="center";const tw=ctx.measureText(label).width;ctx.fillStyle="rgba(255,255,255,.9)";ctx.fillRect(lx-tw/2-5,ly-10,tw+10,20);ctx.fillStyle="#202124";ctx.fillText(label,lx,ly);}ctx.textAlign="left";}start+=angle;});
       ctx.font="13px 'Noto Sans JP',sans-serif";r.items.forEach((item,i)=>{const ly=y+22+i*29;ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fillRect(520,ly-6,12,12);ctx.fillStyle="#202124";ctx.fillText(`${item.label}：${item.count}${r.labelMode==="percent"?`（${item.percent.toFixed(1)}%）`:""}`,542,ly);});
@@ -334,6 +369,15 @@
   window.downloadTablePNG=i=>downloadCanvas(tableCanvas(results[i]),`${results[i].variable}_表.png`);
   window.downloadChartPNG=i=>downloadCanvas(chartCanvas(results[i]),`${results[i].variable}_グラフ.png`);
   window.downloadCombinedPNG=i=>downloadCanvas(combinedCanvas(results[i]),`${results[i].variable}_表とグラフ.png`);
+  window.downloadCombinedCSV=i=>downloadBlob(new Blob(["\ufeff"+csvForResult(results[i])],{type:"text/csv;charset=utf-8"}),`${results[i].variable}_表とグラフ用データ.csv`);
+  window.downloadCombinedExcel=async i=>{
+    const r=results[i],wb=new ExcelJS.Workbook(),ws=wb.addWorksheet(safeSheetName(r.variable));
+    fillResultSheet(ws,r);
+    const canvas=combinedCanvas(r),base64=canvas.toDataURL("image/png"),imageId=wb.addImage({base64,extension:"png"});
+    ws.addImage(imageId,{tl:{col:5,row:1},ext:{width:960,height:Math.min(1500,canvas.height*960/canvas.width)}});
+    ws.pageSetup={orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0};
+    downloadBlob(new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`${r.variable}_表とグラフ.xlsx`);
+  };
 
   async function resultWorkbook(){
     const wb=new ExcelJS.Workbook();
@@ -351,7 +395,7 @@
   window.downloadAllCSVs=async()=>{const zip=new JSZip();results.forEach(r=>zip.file(`${r.variable}_単純集計.csv`,"\ufeff"+csvForResult(r)));downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_CSV一式.zip");};
   function svgForResult(r){
     const w=1000,rowH=46,h=125+r.items.length*rowH,max=Math.max(1,...r.items.map(x=>x.count));
-    if((r.chartType||"bar")==="pie"&&r.type!=="NUMERIC"){
+    if((r.chartType||"bar")==="pie"){
       const total=r.items.reduce((n,x)=>n+x.count,0)||1,cx=280,cy=240,radius=125;let start=-Math.PI/2;
       const slices=r.items.map((x,i)=>{const angle=x.count/total*Math.PI*2,end=start+angle,x1=cx+Math.cos(start)*radius,y1=cy+Math.sin(start)*radius,x2=cx+Math.cos(end)*radius,y2=cy+Math.sin(end)*radius,large=angle>Math.PI?1:0,path=`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2} Z`;const mid=start+angle/2,label=valueLabel(r,x),small=x.percent<8&&x.count>0,ex=cx+Math.cos(mid)*radius,ey=cy+Math.sin(mid)*radius,mx=cx+Math.cos(mid)*(radius+30),my=cy+Math.sin(mid)*(radius+30),right=Math.cos(mid)>=0,tx=mx+(right?42:-42),lx=cx+Math.cos(mid)*radius*.64,ly=cy+Math.sin(mid)*radius*.64;start=end;const mark=!label?"":small?`<polyline points="${ex},${ey} ${mx},${my} ${tx+(right?-7:7)},${my}" fill="none" stroke="#596273" stroke-width="2"/><text x="${tx}" y="${my}" text-anchor="${right?'start':'end'}" dominant-baseline="middle" font-size="15" font-weight="700" fill="#202124">${esc(label)}</text>`:`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="700" fill="#202124" stroke="white" stroke-width="4" paint-order="stroke">${esc(label)}</text>`;return `<path d="${path}" fill="${PNG_COLORS[i%PNG_COLORS.length]}" stroke="white"/>${mark}`;}).join("");
       return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="500" viewBox="0 0 ${w} 500"><rect width="100%" height="100%" fill="white"/><text x="20" y="28" font-size="18" font-weight="bold" fill="#6d28d9">${esc(r.variable)}</text><text x="20" y="56" font-size="15">${esc(r.question)}</text><text x="20" y="80" font-size="15" font-weight="700">N=${r.valid}</text>${slices}</svg>`;

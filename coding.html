@@ -16,7 +16,7 @@
   </script>
   <script src="vendor/exceljs-hardened.min.js">
   </script>
-  <script src="js/app.js" type="module">
+  <script src="js/app.js?v=20261013-ma-fix1" type="module">
   </script>
   <meta content="フォーム回答のコーディング、V番号による数値化、簡易分析、表・グラフ作成をブラウザ上で支援します。" name="description"/>
   <meta content="アンケート,コーディング,数値化,簡易分析,単純集計,フォーム,Excel,CSV,SA,MA,グラフ" name="keywords"/>
@@ -134,8 +134,29 @@
         <input accept=".xlsx,.csv" hidden="" id="answerFile" type="file"/>
        </label>
       </div>
-      <p id="answerStatus" class="help">ExcelまたはCSVを選択してください。読み込み完了後、自動的に「2. 変数名設定」へ進みます。</p>
-</div>
+      <div class="source-grid">
+       <article class="card">
+        <h3>
+         質問票PDF（任意）
+        </h3>
+        <label class="button">
+         PDFを選択
+         <input accept=".pdf" hidden="" id="pdfFile" type="file"/>
+        </label>
+        <p id="pdfStatus">
+        </p>
+       </article>
+       <article class="card">
+        <h3>
+         PDFがない場合
+        </h3>
+        <p>
+         設定は後から手動で修正できます。
+        </p>
+       </article>
+      </div>
+     <div class="toolbar step-actions"><button class="button primary" id="fileNextButton" onclick="proceedFromFiles()">次へ（PDFを読み込んで変数名設定へ）</button></div>
+     </div>
      <div class="panel" data-step="2">
       <h2>
        変数名設定
@@ -203,13 +224,19 @@
       </button>
      </div>
      <div class="panel" data-step="4">
-      <div class="finish-heading"><div><span class="finish-kicker">STEP 4</span><h2>確認・保存</h2><p>加工結果を確認し、必要な形式で保存してください。</p></div></div>
-      <div class="finish-summary card" id="summary"></div>
-      <div class="export-grid">
-       <button class="export-card export-primary" onclick="exportExcel()"><span class="export-icon">X</span><span><strong>加工済みExcelを保存</strong><small>回答値加工を反映したExcelファイル</small></span></button>
-       <button class="export-card" onclick="downloadProcessedMap()"><span class="export-icon">表</span><span><strong>設問別対応表を保存</strong><small>各V番号を別シートにした2列の対応表</small></span></button>
-       <button class="export-card" onclick="exportCSV()"><span class="export-icon">C</span><span><strong>CSVを保存</strong><small>加工済みデータをCSV形式で保存</small></span></button>
-       <button class="export-card export-refresh" onclick="reloadAll(this)" title="最新の回答値加工設定を再読み込み"><span class="export-icon">↻</span><span><strong>設定を再読み込み</strong><small>3番の最新設定で表示と出力を更新</small></span></button>
+      <h2>
+       確認・保存
+      </h2>
+      <div class="card" id="summary">
+      </div>
+      <div class="toolbar">
+       <button class="button primary" onclick="exportExcel()">
+        Excel保存
+       </button>
+<button class="button" onclick="downloadProcessedMap()">加工結果の対応表だけをDL</button>
+       <button class="button" onclick="exportCSV()">
+        CSV保存
+       </button>
       </div>
      </div>
     </section>

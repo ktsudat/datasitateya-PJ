@@ -38,3 +38,4 @@
 .analysis-bar-label{display:flex;align-items:center;gap:7px;color:var(--t)}
 .analysis-color-dot{display:inline-block;flex:0 0 10px;width:10px;height:10px;border-radius:3px;border:1px solid rgba(45,55,72,.13)}
 .analysis-pie{box-shadow:0 10px 24px rgba(45,55,72,.12);border:1px solid #d8dee8}
+.analysis-chart-control{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:flex-end}.analysis-chart-control label{display:flex;align-items:center;gap:6px}.analysis-chart-control input{width:76px;padding:7px;border:1px solid var(--b);border-radius:8px;background:var(--field);color:var(--field-text)}.numeric-bin-settings{display:flex;flex-wrap:wrap;gap:10px}.numeric-bin-settings.is-hidden{display:none}.analysis-bar{position:relative}.analysis-bar-inside{position:absolute;left:calc(100% + 6px);top:50%;transform:translateY(-50%);white-space:nowrap;font-size:.72rem;color:var(--t)}

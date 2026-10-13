@@ -182,7 +182,7 @@
     const mean=values.reduce((a,b)=>a+b,0)/valid;
     const sorted=[...values].sort((a,b)=>a-b), median=sorted.length%2?sorted[(sorted.length-1)/2]:(sorted[sorted.length/2-1]+sorted[sorted.length/2])/2;
     items.forEach(x=>x.percent=valid?x.count/valid*100:0);
-    return {variable:meta.variable,question:meta.question,type:"NUMERIC",items,valid,missing,invalid:0,unexpected:0,mean,median,min:sorted[0],max:sorted.at(-1)};
+    return {variable:meta.variable,question:meta.question,type:"NUMERIC",items,valid,missing,invalid:0,unexpected:0,mean,median,min:sorted[0],max:sorted.at(-1),values:[...values],numericMode:"bins",binCount:10,rangeMin:sorted[0],rangeMax:sorted.at(-1),labelMode:"none"};
   }
 
   function analyzeOne(map){
@@ -231,13 +231,43 @@
       .filter(meta=>meta.variable!=="V0" && !mappedVariables.has(meta.variable) && dataModel.index.has(meta.variable))
       .map(analyzeNumeric).filter(Boolean);
     results=[...mapped,...numeric].sort(sortV);
-    results.forEach(r=>r.chartType=chartTypes[r.variable]||r.chartType||"bar");
+    results.forEach(r=>{r.chartType=chartTypes[r.variable]||r.chartType||"bar";r.labelMode=r.labelMode||"none";});
     renderResults();
     const invalid=results.reduce((n,r)=>n+r.invalid,0), skipped=[...mappingModel.maps.keys()].filter(v=>!results.some(r=>r.variable===v)).length;
     summary.textContent=`${results.length}設問を集計しました。対応表に一致しない値は${invalid}件、データ列がない対応表は${skipped}件です。`;
     downloads.hidden=!results.length;
   }
+
+  function numericItems(r){
+    const vals=r.values||[]; if(r.numericMode==="raw"){
+      const counts=new Map();vals.forEach(v=>counts.set(v,(counts.get(v)||0)+1));
+      return [...counts.entries()].sort((a,b)=>a[0]-b[0]).map(([v,count],i)=>({code:String(v),label:String(v),count,percent:r.valid?count/r.valid*100:0}));
+    }
+    const n=Math.max(2,Math.min(50,Number(r.binCount)||10)),lo=Number.isFinite(Number(r.rangeMin))?Number(r.rangeMin):r.min,hi=Number.isFinite(Number(r.rangeMax))?Number(r.rangeMax):r.max;
+    if(hi<=lo)return numericBins(vals);
+    const width=(hi-lo)/n,bins=Array.from({length:n},(_,i)=>({code:String(i+1),label:`${round(lo+i*width)}～${round(lo+(i+1)*width)}`,count:0}));
+    let under=0,over=0;vals.forEach(v=>{if(v<lo)under++;else if(v>hi)over++;else bins[Math.min(n-1,Math.floor((v-lo)/width))].count++;});
+    const out=[];if(under)out.push({code:"<",label:`${round(lo)}未満`,count:under});out.push(...bins);if(over)out.push({code:">",label:`${round(hi)}超`,count:over});
+    out.forEach(x=>x.percent=r.valid?x.count/r.valid*100:0);return out;
+  }
+  function round(v){return Math.round(v*100)/100;}
+  function refreshNumeric(r){if(r.type==="NUMERIC")r.items=numericItems(r);}
+  function valueLabel(r,x){return r.labelMode==="count"?String(x.count):r.labelMode==="percent"?`${x.percent.toFixed(1)}%`:"";}
+  function statsText(r){return r.type==="NUMERIC"?`有効 ${r.valid}件 ／ 欠測 ${r.missing}件 ／ 平均 ${r.mean.toFixed(1)} ／ 中央値 ${r.median.toFixed(1)} ／ 最小 ${r.min} ／ 最大 ${r.max}`:`有効 ${r.valid}件 ／ 欠測 ${r.missing}件`;}
+  function controlsHtml(r,i){
+    const common=`<label>グラフ<select onchange="changeChartType(${i},this.value)" ${r.type==="NUMERIC"?"disabled":""}><option value="bar" ${r.chartType!=="pie"?"selected":""}>棒グラフ</option><option value="pie" ${r.chartType==="pie"?"selected":""}>円グラフ</option></select></label><label>グラフ内表示<select onchange="changeLabelMode(${i},this.value)"><option value="none" ${r.labelMode==="none"?"selected":""}>表示しない</option><option value="count" ${r.labelMode==="count"?"selected":""}>実数</option><option value="percent" ${r.labelMode==="percent"?"selected":""}>割合（%）</option></select></label>`;
+    if(r.type!=="NUMERIC")return common;
+    return common+`<label>数値のまとめ方<select onchange="changeNumericMode(${i},this.value)"><option value="bins" ${r.numericMode!=="raw"?"selected":""}>階級でまとめる</option><option value="raw" ${r.numericMode==="raw"?"selected":""}>値ごとの件数</option></select></label><span class="numeric-bin-settings ${r.numericMode==="raw"?"is-hidden":""}"><label>階級数<input type="number" min="2" max="50" value="${r.binCount}" onchange="changeNumericSetting(${i},'binCount',this.value)"></label><label>範囲<input type="number" value="${r.rangeMin}" onchange="changeNumericSetting(${i},'rangeMin',this.value)">～<input type="number" value="${r.rangeMax}" onchange="changeNumericSetting(${i},'rangeMax',this.value)"></label></span>`;
+  }
   function renderResults(){
+    results.forEach(refreshNumeric);
+    resultsRoot.innerHTML=results.map((r,i)=>{const rows=r.items.map(x=>`<tr><td>${esc(x.code)}</td><td>${esc(x.label)}</td><td>${x.count}</td><td>${x.percent.toFixed(1)}%</td></tr>`).join("");const col=r.type==="NUMERIC"?(r.numericMode==="raw"?"値":"値・階級"):"回答選択肢";return `<article class="analysis-result-card" data-result="${i}"><header class="analysis-result-head"><div><span class="analysis-v-number">${esc(r.variable)} / ${r.type}</span><h2 class="analysis-question">${esc(r.question)}</h2></div><div class="analysis-meta">${statsText(r)}</div></header><div class="analysis-chart-control">${controlsHtml(r,i)}</div><div class="analysis-result-grid"><div><table class="analysis-table"><thead><tr><th>番号</th><th>${col}</th><th>件数</th><th>割合</th></tr></thead><tbody>${rows}</tbody></table></div><div class="analysis-chart-host" id="analysisChart${i}">${r.chartType==="pie"?pieChartHtml(r):barChartHtml(r)}</div></div><div class="analysis-export-groups"><section><strong>1. 表単体</strong><div><button class="button" onclick="downloadTablePNG(${i})">PNG</button><button class="button" onclick="downloadResultExcel(${i})">Excel</button><button class="button" onclick="downloadResultCSV(${i})">CSV</button></div></section><section><strong>2. グラフ単体</strong><div><button class="button" onclick="downloadChartPNG(${i})">PNG</button></div></section><section><strong>3. 表＋グラフ</strong><div><button class="button primary" onclick="downloadCombinedPNG(${i})">PNG</button></div></section></div></article>`}).join("");
+  }
+  window.changeLabelMode=(i,v)=>{results[i].labelMode=v;renderResults();};
+  window.changeNumericMode=(i,v)=>{results[i].numericMode=v;refreshNumeric(results[i]);renderResults();};
+  window.changeNumericSetting=(i,k,v)=>{results[i][k]=Number(v);refreshNumeric(results[i]);renderResults();};
+
+  function renderResultsLegacy(){
     if(!results.length){resultsRoot.innerHTML='<div class="analysis-empty">集計対象がありません。</div>';return;}
     resultsRoot.innerHTML=results.map((r,i)=>{
       const max=Math.max(1,...r.items.map(x=>x.count));
@@ -254,19 +284,19 @@
     const max=Math.max(1,...r.items.map(x=>x.count)),colors=["#7C9CE6","#70C1B3","#F2B880","#E88FA2","#A98BD4","#78B7D0","#9BCB76","#E5C36D","#C78FBF","#8EC5A4","#EE9B73","#92A8D1"];
     return `<div class="analysis-bar-list">${r.items.map((x,i)=>{
       const width=x.count>0?Math.max(2,x.count/max*100):0;
-      return `<div class="analysis-bar-row ${x.count>0?"has-value":"is-zero"}"><span class="analysis-bar-label"><i class="analysis-color-dot" style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}</span><span class="analysis-bar-track"><span class="analysis-bar" style="width:${width}%;background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></span></span><span class="analysis-bar-value">${x.count}</span></div>`;
+      return `<div class="analysis-bar-row ${x.count>0?"has-value":"is-zero"}"><span class="analysis-bar-label"><i class="analysis-color-dot" style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}</span><span class="analysis-bar-track"><span class="analysis-bar" style="width:${width}%;background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"><b class="analysis-bar-inside">${valueLabel(r,x)}</b></span></span><span class="analysis-bar-value">${x.count}</span></div>`;
     }).join("")}</div>`;
   }
   function pieChartHtml(r){
     const total=r.items.reduce((n,x)=>n+x.count,0)||1, colors=PASTEL_COLORS;
     let acc=0;const stops=r.items.map((x,i)=>{const from=acc,to=acc+x.count/total*100;acc=to;return `${colors[i%colors.length]} ${from}% ${to}%`;}).join(",");
-    const legend=r.items.map((x,i)=>`<span><i style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}：${x.count}</span>`).join("");
+    const legend=r.items.map((x,i)=>`<span><i style="background-color:${PASTEL_COLORS[i%PASTEL_COLORS.length]}"></i>${esc(x.label)}：${x.count}${r.labelMode==="percent"?`（${x.percent.toFixed(1)}%）`:""}</span>`).join("");
     return `<div class="analysis-pie-wrap"><div class="analysis-pie" style="background:conic-gradient(${stops})"></div><div class="analysis-pie-legend">${legend}</div></div>`;
   }
   window.changeChartType=(i,type)=>{const host=document.querySelector(`#analysisChart${i}`),r=results[i];r.chartType=type;if(host)host.innerHTML=type==="pie"?pieChartHtml(r):barChartHtml(r);};
 
   function csvForResult(r){
-    const lines=[["V番号",r.variable],["設問文",r.question],[],[r.type==="NUMERIC"?"階級番号":"加工済の番号",r.type==="NUMERIC"?"値・階級":"回答選択肢","件数","割合"]];
+    const lines=[["V番号",r.variable],["設問文",r.question],...(r.type==="NUMERIC"?[["有効",r.valid],["欠測",r.missing],["平均",r.mean],["中央値",r.median],["最小",r.min],["最大",r.max],["表示形式",r.numericMode==="raw"?"値ごとの件数":`階級（${r.binCount}段階、${r.rangeMin}～${r.rangeMax}）`]]:[]),[],[r.type==="NUMERIC"?"階級番号":"加工済の番号",r.type==="NUMERIC"?"値・階級":"回答選択肢","件数","割合"]];
     r.items.forEach(x=>lines.push([x.code,x.label,x.count,`${x.percent.toFixed(1)}%`]));
     return lines.map(row=>row.map(v=>`"${text(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
   }
@@ -274,7 +304,7 @@
   window.downloadResultCSV=i=>downloadBlob(new Blob(["\ufeff"+csvForResult(results[i])],{type:"text/csv;charset=utf-8"}),`${results[i].variable}_単純集計.csv`);
   window.downloadResultExcel=async i=>{
     const r=results[i], wb=new ExcelJS.Workbook(), ws=wb.addWorksheet(r.variable.slice(0,31));
-    ws.addRow(["V番号",r.variable]);ws.addRow(["設問文",r.question]);ws.addRow([]);
+    ws.addRow(["V番号",r.variable]);ws.addRow(["設問文",r.question]);if(r.type==="NUMERIC"){ws.addRow(["有効",r.valid]);ws.addRow(["欠測",r.missing]);ws.addRow(["平均",r.mean]);ws.addRow(["中央値",r.median]);ws.addRow(["最小",r.min]);ws.addRow(["最大",r.max]);ws.addRow(["表示形式",r.numericMode==="raw"?"値ごとの件数":`階級（${r.binCount}段階、${r.rangeMin}～${r.rangeMax}）`]);}ws.addRow([]);
     ws.addRow([r.type==="NUMERIC"?"階級番号":"加工済の番号",r.type==="NUMERIC"?"値・階級":"回答選択肢","件数","割合"]);
     r.items.forEach(x=>ws.addRow([x.code,x.label,x.count,x.percent/100]));
     ws.getRow(4).font={bold:true,color:{argb:"FFFFFFFF"}};ws.getRow(4).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF673AB7"}};
@@ -285,9 +315,9 @@
   const PNG_COLORS=PASTEL_COLORS;
   function setupCanvas(width,height){const canvas=document.createElement("canvas");const scale=Math.max(2,window.devicePixelRatio||1);canvas.width=width*scale;canvas.height=height*scale;canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;const ctx=canvas.getContext("2d");ctx.scale(scale,scale);ctx.fillStyle="#ffffff";ctx.fillRect(0,0,width,height);ctx.textBaseline="middle";return{canvas,ctx,width,height};}
   function wrappedLines(ctx,value,maxWidth){const chars=[...text(value)],lines=[];let line="";for(const ch of chars){if(ctx.measureText(line+ch).width>maxWidth&&line){lines.push(line);line=ch;}else line+=ch;}if(line)lines.push(line);return lines.length?lines:[""];}
-  function drawHeader(ctx,r,width){ctx.fillStyle="#673ab7";ctx.font="700 18px 'Noto Sans JP',sans-serif";ctx.fillText(`${r.variable} / ${r.type}`,28,28);ctx.fillStyle="#202124";ctx.font="700 17px 'Noto Sans JP',sans-serif";const lines=wrappedLines(ctx,r.question||"設問文なし",width-56);lines.slice(0,3).forEach((line,i)=>ctx.fillText(line,28,62+i*24));return 62+Math.min(lines.length,3)*24+18;}
+  function drawHeader(ctx,r,width){ctx.fillStyle="#673ab7";ctx.font="700 18px 'Noto Sans JP',sans-serif";ctx.fillText(`${r.variable} / ${r.type}`,28,28);ctx.fillStyle="#202124";ctx.font="700 17px 'Noto Sans JP',sans-serif";const lines=wrappedLines(ctx,r.question||"設問文なし",width-56);lines.slice(0,3).forEach((line,i)=>ctx.fillText(line,28,62+i*24));const base=62+Math.min(lines.length,3)*24;ctx.fillStyle="#5f6470";ctx.font="13px 'Noto Sans JP',sans-serif";ctx.fillText(statsText(r),28,base+18);return base+42;}
   function tableCanvas(r){const width=1000,rowH=42,headExtra=130,height=headExtra+rowH*(r.items.length+1)+30,{canvas,ctx}=setupCanvas(width,height);let y=drawHeader(ctx,r,width);const cols=[28,120,650,790,970];ctx.fillStyle="#f2edf9";ctx.fillRect(20,y,width-40,rowH);ctx.fillStyle="#202124";ctx.font="700 14px 'Noto Sans JP',sans-serif";["番号",r.type==="NUMERIC"?"値・階級":"回答選択肢","件数","割合"].forEach((v,i)=>ctx.fillText(v,cols[i]+8,y+rowH/2));y+=rowH;ctx.font="14px 'Noto Sans JP',sans-serif";r.items.forEach(item=>{ctx.strokeStyle="#ded8e6";ctx.beginPath();ctx.moveTo(20,y+rowH);ctx.lineTo(width-20,y+rowH);ctx.stroke();ctx.fillStyle="#202124";ctx.fillText(text(item.code),cols[0]+8,y+rowH/2);ctx.fillText(text(item.label).slice(0,52),cols[1]+8,y+rowH/2);ctx.textAlign="right";ctx.fillText(String(item.count),cols[3]-18,y+rowH/2);ctx.fillText(`${item.percent.toFixed(1)}%`,cols[4]-8,y+rowH/2);ctx.textAlign="left";y+=rowH;});return canvas;}
-  function chartCanvas(r){const width=1000,rowH=44,height=Math.max(430,140+r.items.length*rowH),{canvas,ctx}=setupCanvas(width,height);let y=drawHeader(ctx,r,width);if((r.chartType||"bar")==="pie"&&r.type!=="NUMERIC"){const total=r.items.reduce((n,x)=>n+x.count,0)||1,cx=285,cy=y+150,radius=125;let start=-Math.PI/2;r.items.forEach((item,i)=>{const angle=item.count/total*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,start,start+angle);ctx.closePath();ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fill();start+=angle;});ctx.font="13px 'Noto Sans JP',sans-serif";r.items.forEach((item,i)=>{const ly=y+20+i*28;ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fillRect(500,ly-6,12,12);ctx.fillStyle="#202124";ctx.fillText(`${item.label}：${item.count}`,522,ly);});}else{const max=Math.max(1,...r.items.map(x=>x.count));ctx.font="13px 'Noto Sans JP',sans-serif";r.items.forEach((item,i)=>{const yy=y+i*rowH;ctx.fillStyle="#202124";ctx.fillText(text(item.label).slice(0,30),28,yy+16);ctx.fillStyle="#eeeaf3";ctx.fillRect(360,yy+5,520,20);const bw=item.count?Math.max(4,item.count/max*520):0;ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fillRect(360,yy+5,bw,20);ctx.fillStyle="#202124";ctx.fillText(String(item.count),900,yy+16);});}return canvas;}
+  function chartCanvas(r){const width=1000,rowH=44,height=Math.max(430,140+r.items.length*rowH),{canvas,ctx}=setupCanvas(width,height);let y=drawHeader(ctx,r,width);if((r.chartType||"bar")==="pie"&&r.type!=="NUMERIC"){const total=r.items.reduce((n,x)=>n+x.count,0)||1,cx=285,cy=y+150,radius=125;let start=-Math.PI/2;r.items.forEach((item,i)=>{const angle=item.count/total*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,start,start+angle);ctx.closePath();ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fill();start+=angle;});ctx.font="13px 'Noto Sans JP',sans-serif";r.items.forEach((item,i)=>{const ly=y+20+i*28;ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fillRect(500,ly-6,12,12);ctx.fillStyle="#202124";ctx.fillText(`${item.label}：${item.count}${r.labelMode==="percent"?`（${item.percent.toFixed(1)}%）`:""}`,522,ly);});}else{const max=Math.max(1,...r.items.map(x=>x.count));ctx.font="13px 'Noto Sans JP',sans-serif";r.items.forEach((item,i)=>{const yy=y+i*rowH;ctx.fillStyle="#202124";ctx.fillText(text(item.label).slice(0,30),28,yy+16);ctx.fillStyle="#eeeaf3";ctx.fillRect(360,yy+5,520,20);const bw=item.count?Math.max(4,item.count/max*520):0;ctx.fillStyle=PNG_COLORS[i%PNG_COLORS.length];ctx.fillRect(360,yy+5,bw,20);const vl=valueLabel(r,item);if(vl){ctx.fillStyle="#24303f";ctx.font="700 12px 'Noto Sans JP',sans-serif";ctx.fillText(vl,Math.min(820,370+bw),yy+16);}ctx.fillStyle="#202124";ctx.fillText(String(item.count),900,yy+16);});}return canvas;}
   function combinedCanvas(r){const table=tableCanvas(r),chart=chartCanvas(r),width=Math.max(table.width,chart.width)/Math.max(2,window.devicePixelRatio||1),tableH=table.height/Math.max(2,window.devicePixelRatio||1),chartH=chart.height/Math.max(2,window.devicePixelRatio||1),out=setupCanvas(width,tableH+chartH+20);out.ctx.drawImage(table,0,0,width,tableH);out.ctx.strokeStyle="#ded8e6";out.ctx.beginPath();out.ctx.moveTo(20,tableH+10);out.ctx.lineTo(width-20,tableH+10);out.ctx.stroke();out.ctx.drawImage(chart,0,tableH+20,width,chartH);return out.canvas;}
   function downloadCanvas(canvas,name){canvas.toBlob(blob=>{if(blob)downloadBlob(blob,name);},"image/png");}
   window.downloadTablePNG=i=>downloadCanvas(tableCanvas(results[i]),`${results[i].variable}_表.png`);

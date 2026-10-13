@@ -397,8 +397,21 @@
     });
     return wb;
   }
-  window.downloadAllExcel=async()=>{const wb=await resultWorkbook();downloadBlob(new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),"簡易分析_全設問.xlsx");};
-  window.downloadAllCSVs=async()=>{const zip=new JSZip();results.forEach(r=>zip.file(`${r.variable}_単純集計.csv`,"\ufeff"+csvForResult(r)));downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_CSV一式.zip");};
+  window.downloadAllExcel=async()=>{
+    if(!requireResults())return;
+    try{
+      if(!window.ExcelJS)throw new Error("Excel生成ライブラリを読み込めませんでした。");
+      const wb=await resultWorkbook(),buffer=await wb.xlsx.writeBuffer();
+      downloadBlob(new Blob([buffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),"簡易分析_全表.xlsx");
+    }catch(error){saveError("Excel",error);}
+  };
+  window.downloadAllCSVs=async()=>{
+    if(!requireResults())return;
+    try{
+      const blocks=results.map(r=>csvForResult(r).trimEnd());
+      downloadBlob(new Blob(["\ufeff"+blocks.join("\r\n\r\n")+"\r\n"],{type:"text/csv;charset=utf-8"}),"簡易分析_全表.csv");
+    }catch(error){saveError("CSV",error);}
+  };
   function svgForResult(r){
     const w=1000,rowH=46,h=125+r.items.length*rowH,max=Math.max(1,...r.items.map(x=>x.count));
     if((r.chartType||"bar")==="pie"){
@@ -412,7 +425,22 @@
   window.downloadAllCharts=async()=>{const zip=new JSZip();results.forEach(r=>zip.file(`${r.variable}_グラフ.svg`,svgForResult(r)));downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_グラフ一式.zip");};
   window.downloadAllReports=async()=>{const zip=new JSZip();const wb=await resultWorkbook();zip.file("簡易分析_全設問.xlsx",await wb.xlsx.writeBuffer());results.forEach(r=>{zip.file(`${r.variable}_単純集計.csv`,"\ufeff"+csvForResult(r));zip.file(`${r.variable}_グラフ.svg`,svgForResult(r));});downloadBlob(await zip.generateAsync({type:"blob"}),"簡易分析_全表とグラフ.zip");};
 
-  window.downloadAllPDF=async()=>{if(!results.length)return alert("先に分析を実行してください。");const PDF=window.jspdf?.jsPDF;if(!PDF)return alert("PDF生成機能を読み込めませんでした。");const pdf=new PDF({orientation:"landscape",unit:"mm",format:"a4"});for(let i=0;i<results.length;i++){if(i)pdf.addPage("a4","landscape");const cv=combinedCanvas(results[i]),img=cv.toDataURL("image/png"),pw=281,ph=194,ratio=Math.min(pw/cv.width,ph/cv.height);pdf.addImage(img,"PNG",8,8,cv.width*ratio,cv.height*ratio);}pdf.save("簡易分析_全設問_表とグラフ.pdf");};
+  window.downloadAllPDF=async()=>{
+    if(!requireResults())return;
+    try{
+      const PDF=window.jspdf?.jsPDF;
+      if(!PDF)throw new Error("PDF生成ライブラリを読み込めませんでした。");
+      const pdf=new PDF({orientation:"landscape",unit:"mm",format:"a4",compress:true});
+      for(let i=0;i<results.length;i++){
+        if(i)pdf.addPage("a4","landscape");
+        const cv=combinedCanvas(results[i]),img=cv.toDataURL("image/jpeg",0.92),pw=281,ph=194;
+        const ratio=Math.min(pw/cv.width,ph/cv.height);
+        pdf.addImage(img,"JPEG",8,8,cv.width*ratio,cv.height*ratio,undefined,"FAST");
+        await new Promise(resolve=>setTimeout(resolve,0));
+      }
+      pdf.save("簡易分析_全表とグラフ.pdf");
+    }catch(error){saveError("PDF",error);}
+  };
   dataInput.addEventListener("change",async e=>{try{const file=e.target.files[0];if(!file)return;setStatus(dataStatus,"warn","読み込み中…");dataFileBuffer=await file.arrayBuffer();dataFileName=file.name;dataModel=parseDataWorkbook(await workbookFromBuffer(dataFileBuffer));setStatus(dataStatus,"ok",`${file.name}：${dataModel.rows.length}行 × ${dataModel.headers.length}列を読み込みました。`);}catch(err){dataModel=null;dataFileBuffer=null;setStatus(dataStatus,"error",err.message);}});
   mapInput.addEventListener("change",async e=>{try{const file=e.target.files[0];if(!file)return;setStatus(mappingStatus,"warn","読み込み中…");mappingFileBuffer=await file.arrayBuffer();mappingFileName=file.name;mappingModel=parseMappingWorkbook(await workbookFromBuffer(mappingFileBuffer));const extra=mappingModel.warnings.length?` 重複コードは規定選択肢を優先して${mappingModel.warnings.length}設問で統合しました。`:"";setStatus(mappingStatus,"ok",`${file.name}：${mappingModel.maps.size}設問を読み込みました。${extra}`);}catch(err){mappingModel=null;mappingFileBuffer=null;setStatus(mappingStatus,"error",err.message);}});
   runButton.addEventListener("click",()=>runAnalysis(savedChartTypes()));

@@ -256,3 +256,69 @@ body.analysis-modal-open{overflow:hidden}
   }
   .analysis-wide-stage .analysis-result-card{padding:16px}
 }
+
+/* 2026-10-14: center each upper card independently, like a centered image */
+.analysis-page{
+  position:static;
+  left:auto;
+  transform:none;
+  width:auto;
+  max-width:none;
+  margin-left:auto;
+  margin-right:auto;
+}
+.analysis-page .page-heading,
+.analysis-page .analysis-save-panel,
+.analysis-page .analysis-upload-grid,
+.analysis-page .analysis-format-note,
+.analysis-page .analysis-run{
+  position:relative;
+  left:50vw;
+  transform:translateX(-50%);
+  width:min(1320px,calc(100vw - 96px));
+  max-width:calc(100vw - 96px);
+  box-sizing:border-box;
+  margin-left:0;
+  margin-right:0;
+}
+.analysis-page .analysis-upload-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.analysis-page .analysis-upload-card{
+  min-width:0;
+  width:100%;
+}
+.analysis-page .analysis-format-note{
+  margin-top:18px;
+  margin-bottom:30px;
+}
+.analysis-page .analysis-run{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  margin-top:0;
+  margin-bottom:110px;
+}
+.analysis-page .analysis-run #runAnalysis{
+  align-self:center;
+}
+.analysis-page .analysis-run #analysisSummary{
+  width:100%;
+  text-align:center;
+}
+@media(max-width:900px){
+  .analysis-page .analysis-upload-grid{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+  .analysis-page .page-heading,
+  .analysis-page .analysis-save-panel,
+  .analysis-page .analysis-upload-grid,
+  .analysis-page .analysis-format-note,
+  .analysis-page .analysis-run{
+    width:calc(100vw - 24px);
+    max-width:calc(100vw - 24px);
+  }
+  .analysis-page .analysis-run{margin-bottom:72px}
+}

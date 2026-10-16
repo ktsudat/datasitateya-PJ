@@ -21,3 +21,10 @@ window.RELATED_LINKS = [
   { label:"ホーバー運行記録帳", url:"https://sites.google.com/view/oita-hover-log" },
   { label:"お問い合わせフォーム", url:"https://forms.gle/gLgvJF1ipYR7q5Ua7" }
 ];
+
+window.SNSLINKS = [
+  { label: "Twitter（X）", url: "https://x.com/oita_mieruka" },
+  { label: "Threads", url: "https://www.threads.com/@oita.mierujkapj" },
+  { label: "Instagram", url: "https://www.instagram.com/oita.mierujkapj/" },
+  { label: "YouTube", url: "https://www.youtube.com/@Oita_mierukaPJ" }
+];
